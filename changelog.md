@@ -32,8 +32,11 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
   mapping, the reducer, app boot/seed, and SQLite mutation round-trips. Makefile with
   setup/run/build/bundle/test/deploy targets.
 
-### Fixed (vs. the prototype)
+### Fixed
 
+- Drag-and-drop drop target now works in the packaged app: set `dragDropEnabled: false` on the
+  window so Tauri's native OS drag-drop handler stops intercepting the webview's in-page HTML5
+  `drop` events. Guarded by a config test.
 - Hidden columns now leave the board surface (and appear only as "show" pills); the prototype
   rendered them in both places.
 
