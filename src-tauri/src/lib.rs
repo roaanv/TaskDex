@@ -5,6 +5,7 @@
 mod commands;
 mod db;
 mod model;
+mod ops;
 
 use std::sync::Mutex;
 
@@ -34,6 +35,24 @@ pub fn run() {
             commands::get_snapshot,
             commands::get_theme_pref,
             commands::set_theme_pref,
+            commands::add_card,
+            commands::update_card,
+            commands::delete_card,
+            commands::set_prop,
+            commands::rename_prop,
+            commands::remove_prop,
+            commands::toggle_promote,
+            commands::move_to_column,
+            commands::reorder_cards,
+            commands::set_collapsed,
+            commands::set_active,
+            commands::add_board,
+            commands::remove_board,
+            commands::update_board,
+            commands::set_column_config,
+            commands::add_column,
+            commands::reorder_column,
+            commands::rename_column,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
