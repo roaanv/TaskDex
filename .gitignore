@@ -14,6 +14,9 @@ dist-ssr
 
 # Tooling caches
 .serena/
+.playwright-mcp/
+/slice*.png
+/verify*.png
 
 # Editor directories and files
 .vscode/*

@@ -1,0 +1,83 @@
+/* global.css — base resets + hover-reveal chrome + neon scrollbars + selection.
+   Ported from the prototype's TaskDex.html <style>. Dynamic theming happens via
+   inline styles reading the theme context; these are the static, global bits. */
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #070509;
+  -webkit-font-smoothing: antialiased;
+}
+#root {
+  height: 100%;
+}
+button {
+  font-family: inherit;
+}
+input,
+textarea {
+  font-family: inherit;
+}
+input:focus,
+textarea:focus {
+  outline: none;
+}
+
+/* hover-reveal chrome */
+.td-col-actions {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+div:hover > .td-col-actions,
+.td-col-actions:hover {
+  opacity: 1;
+}
+.td-board-del {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.td-board-row:hover .td-board-del {
+  opacity: 1;
+}
+
+/* edit pencils reveal on card hover */
+.td-editbtn {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.td-card:hover .td-editbtn {
+  opacity: 0.9;
+}
+
+/* hover-reveal menu items */
+.td-menu-item:hover {
+  background: rgba(157, 107, 255, 0.12) !important;
+}
+
+/* scrollbars */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(157, 107, 255, 0.28);
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(157, 107, 255, 0.45);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::selection {
+  background: rgba(157, 107, 255, 0.4);
+  color: #fff;
+}

@@ -2,9 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri + React + Typescript</title>
+    <title>TaskDex</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Set the pre-paint background from the cached theme pref to avoid a flash.
+      try {
+        var p = localStorage.getItem('taskdex_theme') || 'dark';
+        var sys = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        var r = p === 'system' ? sys : p;
+        document.documentElement.style.background = r === 'light' ? '#f1f0f7' : '#070509';
+      } catch (e) {}
+    </script>
   </head>
 
   <body>

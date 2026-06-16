@@ -17,6 +17,7 @@ import { buildRegistry, reducer } from '../model';
 import type { Action, Registry, State } from '../model';
 import { api, hasTauri } from '../api';
 import { augment, persist } from './bridge';
+import { devSeedState } from './devSeed';
 
 const EMPTY: State = { cards: {}, boards: [], activeBoardId: null, version: 1 };
 
@@ -40,7 +41,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let alive = true;
     if (!hasTauri()) {
-      console.warn('TaskDex: not running inside Tauri — persistence is disabled.');
+      console.warn('TaskDex: not running inside Tauri — using dev seed, persistence disabled.');
+      rawDispatch({ type: 'replace', state: devSeedState() });
       setReady(true);
       return;
     }
