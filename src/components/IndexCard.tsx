@@ -684,7 +684,7 @@ export function IndexCard({
   const isCapturable = (name: string) => !!boardRegistry[name] || creatable.has(name);
 
   const handlePick = (name: string) => {
-    const tk = activeHashToken(draft, caret);
+    const tk = activeHashToken(draft, notesRef.current?.selectionStart ?? caret);
     if (!tk) return;
     const next = draft.slice(0, tk.start) + '#' + name + ': ' + draft.slice(tk.end);
     const pos = tk.start + name.length + 3; // '#' + name + ': '
@@ -783,10 +783,11 @@ export function IndexCard({
         });
       });
       dispatch({ type: 'updateCard', id: cardId, patch: { body: title + '\n' + remaining } });
+      setCaret(Math.min(caretPos, remaining.length));
     } else {
       setDraft(v);
+      setCaret(caretPos);
     }
-    setCaret(caretPos);
   };
 
   const propNames = Object.keys(card.props);
