@@ -598,6 +598,9 @@ export function Board() {
       onDragOver={(e) => {
         if (draggedId.current) {
           e.preventDefault();
+          // stop the column's onDragOver from overwriting beforeId with null,
+          // so the insertion line lands above the hovered card, not the bottom.
+          e.stopPropagation();
           setDropTarget({ col: colValue, beforeId: c.id });
         }
       }}
