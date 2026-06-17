@@ -28,6 +28,11 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
   property capture, Properties back editor with pin toggles + autocomplete, promoted chips);
   FilterPanel (slide-down AND/OR rule builder with type-aware operators/value controls); native
   HTML5 drag-and-drop with stable keyed slots and state-driven drag-dim.
+- **Resizable & collapsible left panel.** The Sidebar width is drag-adjustable via a seam between
+  the panel and board (clamped 200–460px); a header chevron collapses the panel to give the board
+  full width, with a floating top-left button to reveal it again. Width + collapsed state persist
+  to `localStorage` (`taskdex_sidebar`), mirroring the theme paint-cache convention. Geometry and
+  the pointer-drag gesture live in a dedicated `useSidebarLayout` hook (unit-tested).
 - **Tests.** 46 frontend (Vitest) + 7 backend (`cargo test`) covering the pure logic, the bridge
   mapping, the reducer, app boot/seed, and SQLite mutation round-trips. Makefile with
   setup/run/build/bundle/test/deploy targets.

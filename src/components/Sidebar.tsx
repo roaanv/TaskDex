@@ -193,7 +193,15 @@ function BoardRow({
   );
 }
 
-export function Sidebar({ countFor }: { countFor: (b: Board) => number }) {
+export function Sidebar({
+  countFor,
+  width,
+  onCollapse,
+}: {
+  countFor: (b: Board) => number;
+  width: number;
+  onCollapse: () => void;
+}) {
   const { state, dispatch } = useStore();
   const t = useTheme();
   const logoGlow = t.glow
@@ -203,13 +211,14 @@ export function Sidebar({ countFor }: { countFor: (b: Board) => number }) {
   return (
     <div
       style={{
-        width: 248,
+        width,
         flex: 'none',
         height: '100%',
         background: t.panel,
         borderRight: `1px solid ${t.border}`,
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
       <div style={{ padding: '20px 18px 14px', display: 'flex', alignItems: 'center', gap: 11 }}>
@@ -253,6 +262,37 @@ export function Sidebar({ countFor }: { countFor: (b: Board) => number }) {
             {Object.keys(state.cards).length} cards
           </div>
         </div>
+        <button
+          className="td-icon-btn"
+          onClick={onCollapse}
+          title="Collapse panel"
+          aria-label="Collapse panel"
+          style={{
+            marginLeft: 'auto',
+            width: 26,
+            height: 26,
+            border: 'none',
+            background: 'transparent',
+            color: t.muted,
+            cursor: 'pointer',
+            borderRadius: 7,
+            flex: 'none',
+            padding: 0,
+            display: 'grid',
+            placeItems: 'center',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M9.5 4.5L6 8l3.5 3.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path d="M2.5 3v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
       <div
         style={{

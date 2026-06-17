@@ -44,6 +44,23 @@ div:hover > .td-col-actions,
   opacity: 1;
 }
 
+/* generic icon button (collapse / reveal): subtle hover wash */
+.td-icon-btn {
+  transition: background 0.15s, color 0.15s;
+}
+.td-icon-btn:hover {
+  background: rgba(157, 107, 255, 0.14) !important;
+}
+
+/* sidebar resize handle: invisible until hovered/dragged, then a neon seam */
+.td-resize {
+  transition: background 0.15s;
+}
+.td-resize:hover,
+.td-resize[data-resizing='true'] {
+  background: rgba(157, 107, 255, 0.45) !important;
+}
+
 /* edit pencils reveal on card hover */
 .td-editbtn {
   opacity: 0;
