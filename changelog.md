@@ -36,6 +36,14 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
 - **Tests.** 46 frontend (Vitest) + 7 backend (`cargo test`) covering the pure logic, the bridge
   mapping, the reducer, app boot/seed, and SQLite mutation round-trips. Makefile with
   setup/run/build/bundle/test/deploy targets.
+- **Automatic properties.** Type `#name: value` in a card's notes to set a property. Property
+  names autocomplete from properties already on the active board; an unknown name shows a
+  "Create property" prompt before it is created.
+
+### Changed
+
+- Card notes now capture properties only from `#`-prefixed lines. Plain `name: value` lines
+  are kept as ordinary notes text.
 
 ### Fixed
 
