@@ -1,6 +1,7 @@
 // Shell.tsx — the two-pane app layout: a resizable/collapsible Sidebar + flexible
-// Board, separated by a drag-to-resize seam. When the panel is collapsed a small
-// floating button reveals it again. Geometry lives in useSidebarLayout.
+// Board, separated by a drag-to-resize seam. When the panel is collapsed it shrinks
+// to a thin rail with a vertical "Boards" label that reveals it again on click.
+// Geometry lives in useSidebarLayout.
 
 import { useStore } from '../store/StoreContext';
 import { useTheme } from '../theme/ThemeContext';
@@ -10,6 +11,63 @@ import type { Board } from '../model';
 import { Sidebar } from './Sidebar';
 import { Board as BoardView } from './Board';
 import { useSidebarLayout } from './useSidebarLayout';
+
+/**
+ * The collapsed presentation of the left panel: a thin full-height rail showing
+ * the word "Boards" written vertically, with the reveal arrow sitting next to the
+ * leading "B". The whole rail is one large click target that re-expands the panel.
+ */
+function CollapsedRail({ onExpand }: { onExpand: () => void }) {
+  const t = useTheme();
+  return (
+    <button
+      className="td-collapsed-rail"
+      onClick={onExpand}
+      title="Show boards panel"
+      aria-label="Show boards panel"
+      style={{
+        flex: 'none',
+        width: 40,
+        height: '100%',
+        background: t.panel,
+        border: 'none',
+        borderRight: `1px solid ${t.border}`,
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 10,
+        padding: '18px 0',
+        color: t.muted,
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flex: 'none' }}>
+        <path
+          d="M6.5 4.5L10 8l-3.5 3.5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path d="M13.5 3v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+      <span
+        style={{
+          writingMode: 'vertical-rl',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '.16em',
+          textTransform: 'uppercase',
+          fontFamily: FONT_UI,
+          color: t.faint,
+          userSelect: 'none',
+        }}
+      >
+        Boards
+      </span>
+    </button>
+  );
+}
 
 export function Shell() {
   const { state, ready } = useStore();
@@ -70,42 +128,8 @@ export function Shell() {
           />
         </>
       )}
+      {collapsed && <CollapsedRail onExpand={toggleCollapsed} />}
       <BoardView />
-      {collapsed && (
-        <button
-          className="td-icon-btn"
-          onClick={toggleCollapsed}
-          title="Show panel"
-          aria-label="Show panel"
-          style={{
-            position: 'absolute',
-            top: 16,
-            left: 16,
-            width: 34,
-            height: 34,
-            zIndex: 60,
-            borderRadius: 9,
-            border: `1px solid ${t.border}`,
-            background: t.panel,
-            color: t.muted,
-            cursor: 'pointer',
-            display: 'grid',
-            placeItems: 'center',
-            boxShadow: t.glow ? `0 0 14px -4px ${t.primary}` : '0 2px 8px -3px rgba(0,0,0,.25)',
-          }}
-        >
-          <svg width="17" height="17" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M6.5 4.5L10 8l-3.5 3.5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path d="M13.5 3v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
-      )}
     </div>
   );
 }

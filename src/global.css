@@ -52,6 +52,14 @@ div:hover > .td-col-actions,
   background: rgba(157, 107, 255, 0.14) !important;
 }
 
+/* collapsed left-panel rail: subtle hover wash across the whole strip */
+.td-collapsed-rail {
+  transition: background 0.15s, color 0.15s;
+}
+.td-collapsed-rail:hover {
+  background: rgba(157, 107, 255, 0.08) !important;
+}
+
 /* sidebar resize handle: invisible until hovered/dragged, then a neon seam */
 .td-resize {
   transition: background 0.15s;
