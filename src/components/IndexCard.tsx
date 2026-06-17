@@ -1,6 +1,6 @@
 // IndexCard.tsx — the neon "Outline Tube" index card. Single 3D-flippable surface
 // (content swaps at 90°, no mirrored back face), collapse animation, inline title/
-// notes editing with live `Name: value` property capture, the Properties back
+// notes editing with live `#name: value` property capture, the Properties back
 // editor (typed rows + pin toggles + autocomplete Add-property), promoted chips.
 // Ported from card.jsx; each card glows in its column/board accent.
 
@@ -8,8 +8,8 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, typ
 import { useStore } from '../store/StoreContext';
 import { useTheme } from '../theme/ThemeContext';
 import { FONT_MONO, FONT_UI, tint } from '../theme/tokens';
-import { buildBoardRegistry, detectType, extractHashProps, formatValue, TYPE_META } from '../model';
-import type { Card, PropType, Registry } from '../model';
+import { activeHashToken, buildBoardRegistry, detectType, extractHashProps, formatValue, TYPE_META } from '../model';
+import type { Card, HashToken, PropType, Registry } from '../model';
 
 const titleOf = (body: string) => (body || '').split('\n')[0] || '';
 const notesOf = (body: string) => (body || '').split('\n').slice(1).join('\n');
@@ -557,6 +557,87 @@ function AddProp({ card, registry, accent }: { card: Card; registry: Registry; a
   );
 }
 
+/* ---- notes #property autocomplete (below textarea) ---- */
+function NotesAutocomplete({
+  token,
+  registry,
+  accent,
+  onPick,
+  onCreate,
+}: {
+  token: HashToken | null;
+  registry: Registry;
+  accent: string;
+  onPick: (name: string) => void;
+  onCreate: (name: string) => void;
+}) {
+  const t = useTheme();
+  if (!token) return null;
+  const q = token.name.toLowerCase();
+  const names = Object.keys(registry);
+  const matches = names.filter((n) => n.toLowerCase().includes(q)).slice(0, 6);
+  const exact = names.some((n) => n.toLowerCase() === q);
+  const showCreate = token.name.length > 0 && !exact;
+  if (matches.length === 0 && !showCreate) return null;
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        marginTop: 6,
+        background: t.panel,
+        border: `1px solid ${t.border}`,
+        borderRadius: 8,
+        boxShadow: '0 14px 30px -12px rgba(0,0,0,.7)',
+        overflow: 'hidden',
+      }}
+    >
+      {matches.map((n) => (
+        <div
+          key={n}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onPick(n);
+          }}
+          style={{
+            padding: '7px 11px',
+            fontSize: 12.5,
+            fontFamily: FONT_UI,
+            color: t.textDim,
+            cursor: 'pointer',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+          }}
+        >
+          <TypeGlyph type={registry[n].type} accent={accent} /> {n}
+          <span style={{ marginLeft: 'auto', fontSize: 10, color: t.muted }}>existing</span>
+        </div>
+      ))}
+      {showCreate && (
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onCreate(token.name);
+          }}
+          style={{
+            padding: '7px 11px',
+            fontSize: 12.5,
+            fontFamily: FONT_UI,
+            color: accent,
+            cursor: 'pointer',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            borderTop: matches.length ? `1px solid ${t.line}` : 'none',
+          }}
+        >
+          <span style={{ fontWeight: 700 }}>+</span> Create property "{token.name}"
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---- collapse wrapper ---- */
 function Collapse({ collapsed, children }: { collapsed: boolean; children: ReactNode }) {
   return (
@@ -598,8 +679,30 @@ export function IndexCard({
 
   const boardRegistry = useMemo(() => buildBoardRegistry(state.cards, board), [state.cards, board]);
   const notesRef = useRef<HTMLTextAreaElement>(null);
-  const [_caret, setCaret] = useState(0);
-  const isCapturable = (name: string) => !!boardRegistry[name];
+  const [caret, setCaret] = useState(0);
+  const [creatable, setCreatable] = useState<Set<string>>(new Set());
+  const isCapturable = (name: string) => !!boardRegistry[name] || creatable.has(name);
+
+  const handlePick = (name: string) => {
+    const tk = activeHashToken(draft, caret);
+    if (!tk) return;
+    const next = draft.slice(0, tk.start) + '#' + name + ': ' + draft.slice(tk.end);
+    const pos = tk.start + name.length + 3; // '#' + name + ': '
+    setDraft(next);
+    setCaret(pos);
+    requestAnimationFrame(() => {
+      const el = notesRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(pos, pos);
+      }
+    });
+  };
+
+  const handleCreate = (name: string) => {
+    setCreatable((s) => new Set(s).add(name));
+    handlePick(name);
+  };
 
   const [back, setBack] = useState(false);
   const [rotY, setRotY] = useState(0);
@@ -607,6 +710,8 @@ export function IndexCard({
   const [editing, setEditing] = useState(false);
   const [editTarget, setEditTarget] = useState<'title' | 'notes' | null>(null);
   const [draft, setDraft] = useState('');
+
+  const notesToken = editing && editTarget === 'notes' ? activeHashToken(draft, caret) : null;
   const busy = useRef(false);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -801,30 +906,39 @@ export function IndexCard({
         }}
       />
       {editing && editTarget === 'notes' ? (
-        <textarea
-          ref={notesRef}
-          autoFocus
-          value={draft}
-          onChange={(e) => onNotesChange(e.target.value, e.target.selectionStart)}
-          onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
-          onClick={(e) => e.stopPropagation()}
-          onBlur={saveEdit}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') saveEdit();
-          }}
-          rows={Math.max(3, draft.split('\n').length)}
-          style={{
-            width: '100%',
-            border: 'none',
-            outline: 'none',
-            resize: 'none',
-            background: 'transparent',
-            fontFamily: FONT_UI,
-            fontSize: 14,
-            lineHeight: 1.55,
-            color: t.textDim,
-          }}
-        />
+        <>
+          <textarea
+            ref={notesRef}
+            autoFocus
+            value={draft}
+            onChange={(e) => onNotesChange(e.target.value, e.target.selectionStart)}
+            onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
+            onClick={(e) => e.stopPropagation()}
+            onBlur={saveEdit}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') saveEdit();
+            }}
+            rows={Math.max(3, draft.split('\n').length)}
+            style={{
+              width: '100%',
+              border: 'none',
+              outline: 'none',
+              resize: 'none',
+              background: 'transparent',
+              fontFamily: FONT_UI,
+              fontSize: 14,
+              lineHeight: 1.55,
+              color: t.textDim,
+            }}
+          />
+          <NotesAutocomplete
+            token={notesToken}
+            registry={boardRegistry}
+            accent={accent}
+            onPick={handlePick}
+            onCreate={handleCreate}
+          />
+        </>
       ) : (
         <p
           onDoubleClick={(e) => {
