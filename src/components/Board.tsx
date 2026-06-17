@@ -615,10 +615,10 @@ export function Board() {
         <div
           style={{
             height: 3,
-            background: board.color,
+            background: accent,
             borderRadius: 2,
             margin: '0 0 9px',
-            boxShadow: t.glow ? `0 0 8px ${board.color}` : 'none',
+            boxShadow: t.glow ? `0 0 8px ${accent}` : 'none',
           }}
         />
       )}
