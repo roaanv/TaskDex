@@ -40,3 +40,21 @@ export function extractHashProps(
   });
   return { remaining: keep.join('\n'), found };
 }
+
+export interface HashToken {
+  name: string;
+  start: number;
+  end: number;
+}
+
+/**
+ * If the caret sits inside a `#token` being typed (after `#`, before any `:`),
+ * return it; else null. Names allow letters, digits, spaces, `_` and `-`.
+ */
+export function activeHashToken(text: string, caret: number): HashToken | null {
+  const lineStart = text.lastIndexOf('\n', caret - 1) + 1;
+  const prefix = text.slice(lineStart, caret);
+  const m = prefix.match(/#([A-Za-z0-9 _\-]*)$/);
+  if (!m || m.index === undefined) return null;
+  return { name: m[1].trim(), start: lineStart + m.index, end: caret };
+}
