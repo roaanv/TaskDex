@@ -4,29 +4,15 @@
 // editor (typed rows + pin toggles + autocomplete Add-property), promoted chips.
 // Ported from card.jsx; each card glows in its column/board accent.
 
-import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useStore } from '../store/StoreContext';
 import { useTheme } from '../theme/ThemeContext';
 import { FONT_MONO, FONT_UI, tint } from '../theme/tokens';
-import { detectType, formatValue, TYPE_META } from '../model';
+import { buildBoardRegistry, detectType, extractHashProps, formatValue, TYPE_META } from '../model';
 import type { Card, PropType, Registry } from '../model';
 
-const PROP_LINE = /^\s*([A-Za-z][A-Za-z0-9 _\-]*?)\s*:\s*(\S.*?)\s*$/;
 const titleOf = (body: string) => (body || '').split('\n')[0] || '';
 const notesOf = (body: string) => (body || '').split('\n').slice(1).join('\n');
-
-function extractProps(text: string, includeLast: boolean) {
-  const lines = (text || '').split('\n');
-  const keep: string[] = [];
-  const found: { name: string; value: string }[] = [];
-  lines.forEach((ln, i) => {
-    const isLast = i === lines.length - 1;
-    const m = ln.match(PROP_LINE);
-    if (m && (!isLast || includeLast)) found.push({ name: m[1].trim(), value: m[2].trim() });
-    else keep.push(ln);
-  });
-  return { remaining: keep.join('\n'), found };
-}
 
 /* ---- tiny UI ---- */
 export function TypeGlyph({ type, accent }: { type: PropType; accent?: string }) {
@@ -610,6 +596,11 @@ export function IndexCard({
   const board = state.boards.find((b) => b.id === boardId);
   const collapsed = !!(board && board.collapsed[cardId]);
 
+  const boardRegistry = useMemo(() => buildBoardRegistry(state.cards, board), [state.cards, board]);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const [_caret, setCaret] = useState(0);
+  const isCapturable = (name: string) => !!boardRegistry[name];
+
   const [back, setBack] = useState(false);
   const [rotY, setRotY] = useState(0);
   const [anim, setAnim] = useState(true);
@@ -655,7 +646,7 @@ export function IndexCard({
       body = (draft.replace(/\n/g, ' ').trim() || 'Untitled') + '\n' + notes;
       dispatch({ type: 'updateCard', id: cardId, patch: { body } });
     } else {
-      const { remaining, found } = extractProps(draft, true);
+      const { remaining, found } = extractHashProps(draft, true, isCapturable);
       body = title + '\n' + remaining;
       dispatch({ type: 'updateCard', id: cardId, patch: { body } });
       found.forEach((f) => {
@@ -672,9 +663,8 @@ export function IndexCard({
     setEditing(false);
     setEditTarget(null);
   };
-  const onNotesChange = (v: string) => {
-    setDraft(v);
-    const { remaining, found } = extractProps(v, false);
+  const onNotesChange = (v: string, caretPos: number) => {
+    const { remaining, found } = extractHashProps(v, false, isCapturable);
     if (found.length) {
       setDraft(remaining);
       found.forEach((f) => {
@@ -688,7 +678,10 @@ export function IndexCard({
         });
       });
       dispatch({ type: 'updateCard', id: cardId, patch: { body: title + '\n' + remaining } });
+    } else {
+      setDraft(v);
     }
+    setCaret(caretPos);
   };
 
   const propNames = Object.keys(card.props);
@@ -809,9 +802,11 @@ export function IndexCard({
       />
       {editing && editTarget === 'notes' ? (
         <textarea
+          ref={notesRef}
           autoFocus
           value={draft}
-          onChange={(e) => onNotesChange(e.target.value)}
+          onChange={(e) => onNotesChange(e.target.value, e.target.selectionStart)}
+          onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
           onClick={(e) => e.stopPropagation()}
           onBlur={saveEdit}
           onKeyDown={(e) => {
@@ -848,7 +843,7 @@ export function IndexCard({
             cursor: 'text',
           }}
         >
-          {notes.trim() || 'Double-click to add notes…'}
+          {notes.trim() || 'Double-click to add notes… (use #name: value for properties)'}
         </p>
       )}
       <div style={{ marginTop: 13 }}>
