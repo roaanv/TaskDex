@@ -177,7 +177,7 @@ jobs:
           repository: roaanv/releases
           token: ${{ secrets.RELEASE_REPO_TOKEN }}
           tag_name: taskdex-${{ github.ref_name }}
-          name: taskdex ${{ github.ref_name }}
+          name: TaskDex ${{ github.ref_name }}
           generate_release_notes: true
           files: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
 
