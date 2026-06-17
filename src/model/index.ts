@@ -4,3 +4,4 @@ export * from './detect';
 export * from './filter';
 export * from './registry';
 export * from './reducer';
+export * from './hashToken';

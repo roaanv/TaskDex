@@ -1,7 +1,8 @@
 // registry.ts — derive the property registry from all cards. Powers property-name
 // and select-value autocomplete plus the filter property pickers. Ported from store.jsx.
 
-import type { Card, Registry } from './types';
+import type { Card, Registry, Board } from './types';
+import { evalFilter } from './filter';
 
 /** Build `{ [name]: { name, type, values: { [value]: count } } }` from all cards. */
 export function buildRegistry(cards: Record<string, Card>): Registry {
@@ -14,4 +15,16 @@ export function buildRegistry(cards: Record<string, Card>): Registry {
     });
   });
   return reg;
+}
+
+/** Registry built only from cards passing the board's filter ("cards on the board"). */
+export function buildBoardRegistry(
+  cards: Record<string, Card>,
+  board: Board | null | undefined,
+): Registry {
+  const subset: Record<string, Card> = {};
+  Object.values(cards).forEach((c) => {
+    if (evalFilter(c, board ? board.filter : null)) subset[c.id] = c;
+  });
+  return buildRegistry(subset);
 }
