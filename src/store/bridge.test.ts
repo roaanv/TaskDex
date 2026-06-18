@@ -15,7 +15,8 @@ const { calls, api } = vi.hoisted(() => {
   const names = [
     'setActive', 'addBoard', 'removeBoard', 'updateBoard', 'addCard', 'updateCard',
     'deleteCard', 'setProp', 'renameProp', 'removeProp', 'togglePromote', 'moveToColumn',
-    'reorderCards', 'setCollapsed', 'setColumnConfig', 'addColumn', 'reorderColumn', 'renameColumn',
+    'reorderCards', 'setCollapsed', 'setColumnConfig', 'addColumn', 'reorderColumn', 'reorderColumns',
+    'renameColumn', 'removeColumn',
   ];
   const api: Record<string, (...a: unknown[]) => Promise<void>> = {};
   names.forEach((n) => (api[n] = spy(n)));
@@ -35,7 +36,7 @@ function state(): State {
       {
         id: 'b1', name: 'B', color: '#fff', groupBy: 'Status',
         filter: { connector: 'AND', rules: [] }, filterOpen: false,
-        columns: { Todo: { color: '#111', order: 0 }, Done: { color: '#222', order: 1 } },
+        columnsByProperty: { Status: [{ value: 'Todo', color: '#111' }, { value: 'Done', color: '#222' }] },
         collapsed: {},
       },
     ],
@@ -64,10 +65,10 @@ describe('augment', () => {
       expect(typeof a.created).toBe('number');
     }
   });
-  it('computes color + order for addColumn from the target board', () => {
-    const a = augment({ type: 'addColumn', boardId: 'b1', value: 'Blocked' }, state());
+  it('computes color + order for addColumn from the target property list', () => {
+    const a = augment({ type: 'addColumn', boardId: 'b1', property: 'Status', value: 'Blocked' }, state());
     if (a.type === 'addColumn') {
-      expect(a.order).toBe(2); // after max order 1
+      expect(a.order).toBe(2); // append index after 2 existing columns
       expect(a.color).toMatch(/^#/);
     }
   });
@@ -97,5 +98,20 @@ describe('persist', () => {
   it('maps moveToColumn straight through', async () => {
     await persist({ type: 'moveToColumn', id: 'a', boardId: 'b1', value: 'Done' }, state());
     expect(calls.moveToColumn[0]).toEqual(['a', 'b1', 'Done']);
+  });
+
+  it('maps reorderColumns with the property and full ordered value list', async () => {
+    await persist({ type: 'reorderColumns', boardId: 'b1', property: 'Status', order: ['Done', 'Todo'] }, state());
+    expect(calls.reorderColumns[0]).toEqual(['b1', 'Status', ['Done', 'Todo']]);
+  });
+
+  it('maps renameColumn to (prop, from, to) — global, no board/order', async () => {
+    await persist({ type: 'renameColumn', prop: 'Status', from: 'Todo', to: 'Doing' }, state());
+    expect(calls.renameColumn[0]).toEqual(['Status', 'Todo', 'Doing']);
+  });
+
+  it('maps removeColumn straight through', async () => {
+    await persist({ type: 'removeColumn', boardId: 'b1', property: 'Status', value: 'Done' }, state());
+    expect(calls.removeColumn[0]).toEqual(['b1', 'Status', 'Done']);
   });
 });
