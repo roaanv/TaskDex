@@ -337,10 +337,7 @@ pub fn load_snapshot(conn: &Connection) -> rusqlite::Result<Snapshot> {
                 filter: Filter {
                     connector,
                     rules: Vec::new(),
-<<<<<<< HEAD
-=======
                     enabled: filter_enabled,
->>>>>>> filter-enable-disable
                 },
                 filter_open,
                 columns_by_property: IndexMap::new(),

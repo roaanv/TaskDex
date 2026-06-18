@@ -312,15 +312,12 @@ pub fn update_board(conn: &mut Connection, id: &str, patch: &Value) -> rusqlite:
                 params![id, conn_str],
             )?;
         }
-<<<<<<< HEAD
-=======
         if let Some(enabled) = filter.get("enabled").and_then(Value::as_bool) {
             tx.execute(
                 "UPDATE boards SET filter_enabled = ?2 WHERE id = ?1",
                 params![id, enabled as i64],
             )?;
         }
->>>>>>> filter-enable-disable
         tx.execute(
             "DELETE FROM board_filter_rules WHERE board_id = ?1",
             params![id],
@@ -585,18 +582,7 @@ mod tests {
     }
 
     #[test]
-<<<<<<< HEAD
-<<<<<<< HEAD
-    fn rename_column_rewrites_all_cards_and_board_key() {
-=======
     fn reorder_columns_assigns_sequential_order_from_the_list() {
->>>>>>> 11d6378 (refactor(columns): per-property ordered column lists; fix rename position)
-=======
-    fn reorder_columns_assigns_sequential_order_from_the_list() {
->>>>>>> filter-enable-disable
-=======
-    fn reorder_columns_assigns_sequential_order_from_the_list() {
->>>>>>> cmdenter-to-finish-editing-a-not
         let mut conn = seeded();
         let board_id = load_snapshot(&conn).unwrap().boards[0].id.clone(); // grouped by Status
         let order = vec![

@@ -9,9 +9,6 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
 
 ### Added
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
 - **Enable / disable a filter without clearing its rules.** A single On/Off toggle in the filter
   panel header (shown once a board has at least one rule) turns the whole filter off — the rules are
   kept but ignored, so every card shows — and back on. When off, the rule list dims to signal it is
@@ -24,14 +21,11 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
   columns" commit) that left conflict markers in the test module and prevented the Rust backend from
   compiling. Resolved by keeping both tests (`reorder_boards_persists_new_order` and
   `reorder_columns_assigns_sequential_order_from_the_list`).
->>>>>>> filter-enable-disable
-=======
 - **Cmd/Ctrl+Enter finishes note editing.** While editing a card's notes on the front face,
   pressing `Cmd+Enter` (or `Ctrl+Enter` on non-mac keyboards) now saves the changes and exits the
   editor — the same save path as blur/`Escape`, so `#name: value` properties are still captured.
   Plain `Enter` continues to insert a newline so notes remain multi-line. Covered by
   `IndexCard.test.tsx`.
->>>>>>> cmdenter-to-finish-editing-a-not
 - **Column drag-and-drop reordering.** A grip handle on each column header lets you drag a column
   to a new position; a vertical insertion indicator marks the drop point (left half of a column =
   drop before it, right half = drop after) and the dragged column dims while in flight. Column and
