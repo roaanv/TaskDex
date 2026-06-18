@@ -917,6 +917,12 @@ export function IndexCard({
             onClick={(e) => e.stopPropagation()}
             onBlur={saveEdit}
             onKeyDown={(e) => {
+              // Cmd/Ctrl+Enter finishes editing and saves; plain Enter keeps
+              // inserting newlines so notes can stay multi-line.
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                saveEdit();
+              }
               if (e.key === 'Escape') saveEdit();
             }}
             rows={Math.max(3, draft.split('\n').length)}

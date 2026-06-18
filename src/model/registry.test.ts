@@ -8,7 +8,7 @@ const card = (id: string, props: Card['props']): Card => ({
 
 const board = (rules: Board['filter']['rules']): Board => ({
   id: 'b', name: 'B', color: '#fff', groupBy: null,
-  filter: { connector: 'AND', rules }, filterOpen: false, columns: {}, collapsed: {},
+  filter: { connector: 'AND', rules }, filterOpen: false, columnsByProperty: {}, collapsed: {},
 });
 
 describe('buildBoardRegistry', () => {
