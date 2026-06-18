@@ -50,12 +50,18 @@ export interface Filter {
   rules: Rule[];
 }
 
-/** Per-column configuration, keyed by the group value. */
-export interface ColumnConfig {
+/**
+ * One column within a property's ordered list. Position is the array index.
+ * `value` is the group value AND the join key to a card's `props[property].value`.
+ */
+export interface Column {
+  value: string;
   color?: string;
-  order?: number;
   hidden?: boolean;
 }
+
+/** Patch shape for column-config edits (color / hidden). */
+export type ColumnPatch = Pick<Column, 'color' | 'hidden'>;
 
 export interface Board {
   id: string; // "b_xxxxxxx"
@@ -64,7 +70,8 @@ export interface Board {
   groupBy: string | null; // property name to split into columns, or null = single list
   filter: Filter;
   filterOpen: boolean;
-  columns: Record<string, ColumnConfig>; // keyed by the group value
+  // property name -> ordered columns. Each group-by property keeps its own list.
+  columnsByProperty: Record<string, Column[]>;
   collapsed: Record<string, boolean>; // cardId → collapsed?
 }
 

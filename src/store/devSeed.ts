@@ -95,31 +95,38 @@ export function devSeedState(): State {
     {
       id: uid('b_'), name: 'Product Sprint', color: '#6366f1', groupBy: 'Status',
       filter: { connector: 'AND', rules: [] }, filterOpen: false,
-      columns: {
-        Backlog: { color: statusColors.Backlog, order: 0 },
-        'In progress': { color: statusColors['In progress'], order: 1 },
-        Blocked: { color: statusColors.Blocked, order: 2 },
-        Done: { color: statusColors.Done, order: 3 },
+      columnsByProperty: {
+        Status: [
+          { value: 'Backlog', color: statusColors.Backlog },
+          { value: 'In progress', color: statusColors['In progress'] },
+          { value: 'Blocked', color: statusColors.Blocked },
+          { value: 'Done', color: statusColors.Done },
+          { value: 'Archived', color: '#8b5cf6' }, // empty column, kept (spec §3.7)
+        ],
       },
       collapsed: {},
     },
     {
       id: uid('b_'), name: 'By Priority', color: '#ec4899', groupBy: 'Priority',
       filter: { connector: 'AND', rules: [{ id: uid('r_'), prop: 'Area', op: 'is', value: 'Eng' }] }, filterOpen: false,
-      columns: {
-        High: { color: priColors.High, order: 0 },
-        Medium: { color: priColors.Medium, order: 1 },
-        Low: { color: priColors.Low, order: 2 },
+      columnsByProperty: {
+        Priority: [
+          { value: 'High', color: priColors.High },
+          { value: 'Medium', color: priColors.Medium },
+          { value: 'Low', color: priColors.Low },
+        ],
       },
       collapsed: {},
     },
     {
       id: uid('b_'), name: 'Reading List', color: '#14b8a6', groupBy: 'Shelf',
       filter: { connector: 'AND', rules: [] }, filterOpen: false,
-      columns: {
-        'To read': { color: '#f59e0b', order: 0 },
-        Reading: { color: '#3b82f6', order: 1 },
-        Finished: { color: '#22c55e', order: 2 },
+      columnsByProperty: {
+        Shelf: [
+          { value: 'To read', color: '#f59e0b' },
+          { value: 'Reading', color: '#3b82f6' },
+          { value: 'Finished', color: '#22c55e' },
+        ],
       },
       collapsed: {},
     },

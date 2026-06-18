@@ -47,11 +47,12 @@ CREATE TABLE board_filter_rules (
 
 CREATE TABLE board_columns (
   board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-  value    TEXT NOT NULL,
+  property TEXT NOT NULL,            -- which group-by property this column belongs to
+  value    TEXT NOT NULL,            -- the group value (join key to card_props.value)
   color    TEXT,
-  ord      INTEGER,
   hidden   INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (board_id, value)
+  ord      INTEGER NOT NULL,         -- position within (board_id, property); 0-based, dense
+  PRIMARY KEY (board_id, property, value)
 );
 
 CREATE TABLE card_collapsed (
@@ -69,5 +70,5 @@ CREATE TABLE app_meta (
 CREATE INDEX idx_card_props_card ON card_props(card_id);
 CREATE INDEX idx_card_promotions_card ON card_promotions(card_id);
 CREATE INDEX idx_board_filter_rules_board ON board_filter_rules(board_id);
-CREATE INDEX idx_board_columns_board ON board_columns(board_id);
+CREATE INDEX idx_board_columns_board_prop ON board_columns(board_id, property);
 CREATE INDEX idx_card_collapsed_board ON card_collapsed(board_id);

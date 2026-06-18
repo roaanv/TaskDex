@@ -52,7 +52,9 @@ pub fn run() {
             commands::set_column_config,
             commands::add_column,
             commands::reorder_column,
+            commands::reorder_columns,
             commands::rename_column,
+            commands::remove_column,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

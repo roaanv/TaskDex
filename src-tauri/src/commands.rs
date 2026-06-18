@@ -144,45 +144,68 @@ pub fn update_board(db: State<Db>, id: String, patch: Value) -> CmdResult<()> {
 pub fn set_column_config(
     db: State<Db>,
     board_id: String,
+    property: String,
     value: String,
     patch: Value,
 ) -> CmdResult<()> {
     let conn = db.0.lock().map_err(err)?;
-    ops::set_column_config(&conn, &board_id, &value, &patch).map_err(err)
+    ops::set_column_config(&conn, &board_id, &property, &value, &patch).map_err(err)
 }
 
 #[tauri::command]
 pub fn add_column(
     db: State<Db>,
     board_id: String,
+    property: String,
     value: String,
     color: String,
     order: i64,
 ) -> CmdResult<()> {
     let conn = db.0.lock().map_err(err)?;
-    ops::add_column(&conn, &board_id, &value, &color, order).map_err(err)
+    ops::add_column(&conn, &board_id, &property, &value, &color, order).map_err(err)
 }
 
 #[tauri::command]
 pub fn reorder_column(
     db: State<Db>,
     board_id: String,
+    property: String,
     value: String,
     dir: String,
 ) -> CmdResult<()> {
     let mut conn = db.0.lock().map_err(err)?;
-    ops::reorder_column(&mut conn, &board_id, &value, &dir).map_err(err)
+    ops::reorder_column(&mut conn, &board_id, &property, &value, &dir).map_err(err)
+}
+
+#[tauri::command]
+pub fn reorder_columns(
+    db: State<Db>,
+    board_id: String,
+    property: String,
+    order: Vec<String>,
+) -> CmdResult<()> {
+    let mut conn = db.0.lock().map_err(err)?;
+    ops::reorder_columns(&mut conn, &board_id, &property, &order).map_err(err)
 }
 
 #[tauri::command]
 pub fn rename_column(
     db: State<Db>,
-    board_id: String,
     prop: String,
     from: String,
     to: String,
 ) -> CmdResult<()> {
-    let _ = board_id; // rename is global; kept for API symmetry with the action
     let mut conn = db.0.lock().map_err(err)?;
     ops::rename_column(&mut conn, &prop, &from, &to).map_err(err)
+}
+
+#[tauri::command]
+pub fn remove_column(
+    db: State<Db>,
+    board_id: String,
+    property: String,
+    value: String,
+) -> CmdResult<()> {
+    let conn = db.0.lock().map_err(err)?;
+    ops::remove_column(&conn, &board_id, &property, &value).map_err(err)
 }

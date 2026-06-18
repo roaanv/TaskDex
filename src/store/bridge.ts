@@ -23,12 +23,11 @@ export function augment(action: Action, state: State): Action {
       };
     case 'addColumn': {
       const board = state.boards.find((b) => b.id === action.boardId);
-      const cols = board ? board.columns : {};
-      const maxOrd = Math.max(-1, ...Object.values(cols).map((c) => c.order ?? 0));
+      const list = board?.columnsByProperty[action.property] ?? [];
       return {
         ...action,
-        color: action.color ?? colorFor(Object.keys(cols).length + 2),
-        order: action.order ?? maxOrd + 1,
+        color: action.color ?? colorFor(list.length + 2),
+        order: action.order ?? list.length, // append position for the backend
       };
     }
     default:
@@ -86,13 +85,23 @@ export async function persist(action: Action, prev: State): Promise<void> {
     case 'setCollapsed':
       return api.setCollapsed(action.boardId, action.cardId, action.value);
     case 'setColumnConfig':
-      return api.setColumnConfig(action.boardId, action.value, action.patch);
+      return api.setColumnConfig(action.boardId, action.property, action.value, action.patch);
     case 'addColumn':
-      return api.addColumn(action.boardId, action.value, action.color as string, action.order as number);
+      return api.addColumn(
+        action.boardId,
+        action.property,
+        action.value,
+        action.color as string,
+        action.order as number,
+      );
     case 'reorderColumn':
-      return api.reorderColumn(action.boardId, action.value, action.dir);
+      return api.reorderColumn(action.boardId, action.property, action.value, action.dir);
+    case 'reorderColumns':
+      return api.reorderColumns(action.boardId, action.property, action.order);
     case 'renameColumn':
-      return api.renameColumn(action.boardId, action.prop, action.from, action.to);
+      return api.renameColumn(action.prop, action.from, action.to);
+    case 'removeColumn':
+      return api.removeColumn(action.boardId, action.property, action.value);
     case 'replace':
       return; // snapshot replace is not persisted incrementally
     default:
