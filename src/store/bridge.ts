@@ -46,6 +46,8 @@ export async function persist(action: Action, prev: State): Promise<void> {
       return api.addBoard(action.id as string, action.name ?? 'New board', action.color as string);
     case 'removeBoard':
       return api.removeBoard(action.id);
+    case 'reorderBoards':
+      return api.reorderBoards(action.order);
     case 'updateBoard':
       return api.updateBoard(action.id, action.patch);
     case 'addCard': {

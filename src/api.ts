@@ -34,6 +34,7 @@ export const api = {
   addBoard: (id: string, name: string, color: string) =>
     invoke<void>('add_board', { id, name, color }),
   removeBoard: (id: string) => invoke<void>('remove_board', { id }),
+  reorderBoards: (order: string[]) => invoke<void>('reorder_boards', { order }),
   updateBoard: (id: string, patch: Partial<Board>) => invoke<void>('update_board', { id, patch }),
   setColumnConfig: (boardId: string, value: string, patch: ColumnConfig) =>
     invoke<void>('set_column_config', { boardId, value, patch }),

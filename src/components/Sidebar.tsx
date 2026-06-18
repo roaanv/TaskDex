@@ -2,7 +2,7 @@
 // delete-keeps-cards) + card count + the Light/Dark/Auto theme switch.
 // Ported from sidebar.jsx. Cards are global; removing a board never deletes cards.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/StoreContext';
 import { useTheme, ThemeSwitch } from '../theme/ThemeContext';
 import { FONT_MONO, FONT_UI, tint } from '../theme/tokens';
@@ -13,10 +13,22 @@ function BoardRow({
   board,
   active,
   count,
+  dragging,
+  showLineAbove,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+  onDrop,
 }: {
   board: Board;
   active: boolean;
   count: number;
+  dragging: boolean;
+  showLineAbove: boolean;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
+  onDrop: (e: React.DragEvent) => void;
 }) {
   const { dispatch } = useStore();
   const t = useTheme();
@@ -47,6 +59,11 @@ function BoardRow({
     <div
       onClick={() => dispatch({ type: 'setActive', id: board.id })}
       className="td-board-row"
+      draggable={!editing}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      onDrop={onDrop}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -57,8 +74,24 @@ function BoardRow({
         background: active ? t.surfaceHi : 'transparent',
         boxShadow: active ? `inset 0 0 0 1px ${tint(board.color, '55')}${activeGlow}` : 'none',
         position: 'relative',
+        opacity: dragging ? 0.4 : 1,
       }}
     >
+      {showLineAbove && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 4,
+            right: 4,
+            top: -2,
+            height: 2,
+            borderRadius: 2,
+            background: t.primary,
+            boxShadow: t.glow ? `0 0 6px ${t.primary}` : 'none',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       <span
         onClick={(e) => {
           e.stopPropagation();
@@ -208,6 +241,65 @@ export function Sidebar({
     ? `0 0 12px -2px ${t.primary}, inset 0 0 10px -5px ${t.primary}`
     : `0 1px 3px -1px ${t.primary}55`;
 
+  // --- board drag-to-reorder --------------------------------------------------
+  // dropTarget = id of the board the insertion line sits above, or '__end__' for
+  // the bottom of the list. A ref holds the dragged id so handlers stay stable.
+  const END = '__end__';
+  const draggedId = useRef<string | null>(null);
+  // dropTargetRef drives the drop computation (synchronous, render-independent);
+  // dropTarget state drives the visual insertion line.
+  const dropTargetRef = useRef<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  const setDrop = (target: string | null) => {
+    dropTargetRef.current = target;
+    setDropTarget(target);
+  };
+
+  const resetDrag = () => {
+    draggedId.current = null;
+    dropTargetRef.current = null;
+    setDraggingId(null);
+    setDropTarget(null);
+  };
+
+  const handleDragStart = (id: string) => (e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', id);
+    } catch {
+      /* some webviews reject setData mid-drag — the ref is the source of truth */
+    }
+    draggedId.current = id;
+    setDraggingId(id);
+  };
+
+  const handleDragOver = (id: string) => (e: React.DragEvent) => {
+    if (!draggedId.current) return;
+    e.preventDefault();
+    // Stop the container's fallback onDragOver from overwriting our target with END.
+    e.stopPropagation();
+    // Hover past the row's vertical midpoint → insert below it (i.e. above the
+    // next board, or at the end if it's the last one).
+    const rect = e.currentTarget.getBoundingClientRect();
+    const past = e.clientY > rect.top + rect.height / 2;
+    const ids = state.boards.map((b) => b.id);
+    const idx = ids.indexOf(id);
+    setDrop(past ? ids[idx + 1] ?? END : id);
+  };
+
+  const handleDrop = () => {
+    const id = draggedId.current;
+    if (!id) return resetDrag();
+    const target = dropTargetRef.current;
+    const order = state.boards.map((b) => b.id).filter((x) => x !== id);
+    const idx = target && target !== END ? order.indexOf(target) : order.length;
+    order.splice(idx < 0 ? order.length : idx, 0, id);
+    dispatch({ type: 'reorderBoards', order });
+    resetDrag();
+  };
+
   return (
     <div
       style={{
@@ -308,6 +400,14 @@ export function Sidebar({
         Boards
       </div>
       <div
+        onDragOver={(e) => {
+          // Fallback for hovering the empty space below the last board → drop at end.
+          if (draggedId.current) {
+            e.preventDefault();
+            setDrop(END);
+          }
+        }}
+        onDrop={handleDrop}
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -323,8 +423,26 @@ export function Sidebar({
             board={b}
             active={b.id === state.activeBoardId}
             count={countFor ? countFor(b) : 0}
+            dragging={draggingId === b.id}
+            showLineAbove={draggingId !== null && dropTarget === b.id}
+            onDragStart={handleDragStart(b.id)}
+            onDragOver={handleDragOver(b.id)}
+            onDragEnd={resetDrag}
+            onDrop={handleDrop}
           />
         ))}
+        {draggingId !== null && dropTarget === END && (
+          <div
+            style={{
+              height: 2,
+              margin: '0 4px',
+              borderRadius: 2,
+              background: t.primary,
+              boxShadow: t.glow ? `0 0 6px ${t.primary}` : 'none',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
       </div>
       <div
         style={{

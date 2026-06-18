@@ -182,6 +182,16 @@ pub fn add_board(conn: &mut Connection, id: &str, name: &str, color: &str) -> ru
     tx.commit()
 }
 
+/// Persist a new board order: `order` is the list of board ids top-to-bottom.
+/// Each board's `ord` is set to its index, matching the `ORDER BY ord` load query.
+pub fn reorder_boards(conn: &mut Connection, order: &[String]) -> rusqlite::Result<()> {
+    let tx = conn.transaction()?;
+    for (i, id) in order.iter().enumerate() {
+        tx.execute("UPDATE boards SET ord = ?2 WHERE id = ?1", params![id, i as i64])?;
+    }
+    tx.commit()
+}
+
 pub fn remove_board(conn: &mut Connection, id: &str) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
     let prev_active: Option<String> = tx
@@ -359,6 +369,18 @@ mod tests {
         assert_eq!(p.value, "Done");
         assert_eq!(p.ptype, "select");
         let _ = &mut conn;
+    }
+
+    #[test]
+    fn reorder_boards_persists_new_order() {
+        let mut conn = seeded();
+        let ids: Vec<String> = load_snapshot(&conn).unwrap().boards.iter().map(|b| b.id.clone()).collect();
+        assert!(ids.len() >= 3, "seed has 3 boards");
+        // reverse the order
+        let reversed: Vec<String> = ids.iter().rev().cloned().collect();
+        reorder_boards(&mut conn, &reversed).unwrap();
+        let after: Vec<String> = load_snapshot(&conn).unwrap().boards.iter().map(|b| b.id.clone()).collect();
+        assert_eq!(after, reversed, "load_snapshot reflects the new ord");
     }
 
     #[test]

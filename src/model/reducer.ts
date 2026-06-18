@@ -41,6 +41,7 @@ export type Action =
   | { type: 'addBoard'; id?: string; name?: string; color?: string }
   | { type: 'removeBoard'; id: string }
   | { type: 'updateBoard'; id: string; patch: Partial<Board> }
+  | { type: 'reorderBoards'; order: string[] }
   | { type: 'addCard'; id?: string; body?: string; props?: Record<string, Prop>; created?: number }
   | { type: 'updateCard'; id: string; patch: Partial<Card> }
   | { type: 'removeCard'; id: string }
@@ -87,6 +88,15 @@ export function reducer(state: State, action: Action): State {
         ...state,
         boards: state.boards.map((b) => (b.id === a.id ? { ...b, ...a.patch } : b)),
       };
+    case 'reorderBoards': {
+      // a.order = board ids in the new order. Rebuild the array in that order,
+      // dropping unknown ids and appending any boards the order omitted (defensive).
+      const byId = new Map(state.boards.map((b) => [b.id, b]));
+      const ordered = a.order.map((id) => byId.get(id)).filter((b): b is Board => !!b);
+      const seen = new Set(ordered.map((b) => b.id));
+      const rest = state.boards.filter((b) => !seen.has(b.id));
+      return { ...state, boards: [...ordered, ...rest] };
+    }
 
     case 'addCard': {
       const c = makeCard(a.body || 'Untitled\n', a.props || {}, {}, a.id, a.created);

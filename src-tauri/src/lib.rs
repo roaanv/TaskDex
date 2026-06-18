@@ -48,6 +48,7 @@ pub fn run() {
             commands::set_active,
             commands::add_board,
             commands::remove_board,
+            commands::reorder_boards,
             commands::update_board,
             commands::set_column_config,
             commands::add_column,

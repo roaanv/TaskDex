@@ -135,6 +135,12 @@ pub fn remove_board(db: State<Db>, id: String) -> CmdResult<()> {
 }
 
 #[tauri::command]
+pub fn reorder_boards(db: State<Db>, order: Vec<String>) -> CmdResult<()> {
+    let mut conn = db.0.lock().map_err(err)?;
+    ops::reorder_boards(&mut conn, &order).map_err(err)
+}
+
+#[tauri::command]
 pub fn update_board(db: State<Db>, id: String, patch: Value) -> CmdResult<()> {
     let mut conn = db.0.lock().map_err(err)?;
     ops::update_board(&mut conn, &id, &patch).map_err(err)

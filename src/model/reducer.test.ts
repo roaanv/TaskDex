@@ -27,6 +27,24 @@ describe('reducer', () => {
     expect(Object.keys(next.boards[0].columns)).not.toContain('Todo');
   });
 
+  it('reorderBoards rebuilds the board list in the given id order', () => {
+    const s = baseState();
+    const b2: Board = { ...s.boards[0], id: 'b2', name: 'Second' };
+    const b3: Board = { ...s.boards[0], id: 'b3', name: 'Third' };
+    const start: State = { ...s, boards: [s.boards[0], b2, b3] };
+    const next = reducer(start, { type: 'reorderBoards', order: ['b3', 'b1', 'b2'] });
+    expect(next.boards.map((b) => b.id)).toEqual(['b3', 'b1', 'b2']);
+    expect(next.activeBoardId).toBe('b1'); // active board unchanged
+  });
+
+  it('reorderBoards appends boards omitted from the order (defensive)', () => {
+    const s = baseState();
+    const b2: Board = { ...s.boards[0], id: 'b2' };
+    const start: State = { ...s, boards: [s.boards[0], b2] };
+    const next = reducer(start, { type: 'reorderBoards', order: ['b2'] });
+    expect(next.boards.map((b) => b.id)).toEqual(['b2', 'b1']);
+  });
+
   it('moveToColumn sets the grouping prop value to the target column', () => {
     const next = reducer(baseState(), { type: 'moveToColumn', id: 'c', boardId: 'b1', value: 'Todo' });
     expect(next.cards.c.props.Status.value).toBe('Todo');
