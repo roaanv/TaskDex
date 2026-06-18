@@ -52,13 +52,14 @@ pub struct Filter {
     pub rules: Vec<Rule>,
 }
 
-/// Per-column configuration, keyed by the group value in `Board.columns`.
+/// One column within a property's ordered list (`Board.columns_by_property`).
+/// Position is the array index; `value` is the group value AND the join key to
+/// `card_props.value`.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Column {
+    pub value: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub color: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub order: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub hidden: Option<bool>,
 }
@@ -73,7 +74,8 @@ pub struct Board {
     pub group_by: Option<String>,
     pub filter: Filter,
     pub filter_open: bool,
-    pub columns: IndexMap<String, Column>,
+    /// property name -> ordered columns. Serializes as `columnsByProperty`.
+    pub columns_by_property: IndexMap<String, Vec<Column>>,
     pub collapsed: IndexMap<String, bool>,
 }
 

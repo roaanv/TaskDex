@@ -172,10 +172,18 @@ fn seed(conn: &mut Connection) -> rusqlite::Result<()> {
         "INSERT INTO boards (id, name, color, group_by, filter_connector, filter_open, ord) VALUES (?1,?2,?3,?4,'AND',0,0)",
         params![b1, "Product Sprint", "#6366f1", "Status"],
     )?;
-    for (val, color, ord) in [("Backlog", "#64748b", 0), ("In progress", "#3b82f6", 1), ("Blocked", "#ef4444", 2), ("Done", "#22c55e", 3)] {
+    // `Archived` is intentionally empty (no card has Status=Archived) to prove
+    // empty columns persist in the materialized list (spec §3.7).
+    for (val, color, ord) in [
+        ("Backlog", "#64748b", 0),
+        ("In progress", "#3b82f6", 1),
+        ("Blocked", "#ef4444", 2),
+        ("Done", "#22c55e", 3),
+        ("Archived", "#8b5cf6", 4),
+    ] {
         tx.execute(
-            "INSERT INTO board_columns (board_id, value, color, ord, hidden) VALUES (?1,?2,?3,?4,0)",
-            params![b1, val, color, ord],
+            "INSERT INTO board_columns (board_id, property, value, color, ord, hidden) VALUES (?1,?2,?3,?4,?5,0)",
+            params![b1, "Status", val, color, ord],
         )?;
     }
 
@@ -187,10 +195,14 @@ fn seed(conn: &mut Connection) -> rusqlite::Result<()> {
         "INSERT INTO board_filter_rules (id, board_id, prop, op, value, value2, ord) VALUES (?1,?2,?3,?4,?5,NULL,0)",
         params![uid("r_"), b2, "Area", "is", "Eng"],
     )?;
-    for (val, color, ord) in [("High", "#ef4444", 0), ("Medium", "#f59e0b", 1), ("Low", "#22c55e", 2)] {
+    for (val, color, ord) in [
+        ("High", "#ef4444", 0),
+        ("Medium", "#f59e0b", 1),
+        ("Low", "#22c55e", 2),
+    ] {
         tx.execute(
-            "INSERT INTO board_columns (board_id, value, color, ord, hidden) VALUES (?1,?2,?3,?4,0)",
-            params![b2, val, color, ord],
+            "INSERT INTO board_columns (board_id, property, value, color, ord, hidden) VALUES (?1,?2,?3,?4,?5,0)",
+            params![b2, "Priority", val, color, ord],
         )?;
     }
 
@@ -198,10 +210,14 @@ fn seed(conn: &mut Connection) -> rusqlite::Result<()> {
         "INSERT INTO boards (id, name, color, group_by, filter_connector, filter_open, ord) VALUES (?1,?2,?3,?4,'AND',0,2)",
         params![b3, "Reading List", "#14b8a6", "Shelf"],
     )?;
-    for (val, color, ord) in [("To read", "#f59e0b", 0), ("Reading", "#3b82f6", 1), ("Finished", "#22c55e", 2)] {
+    for (val, color, ord) in [
+        ("To read", "#f59e0b", 0),
+        ("Reading", "#3b82f6", 1),
+        ("Finished", "#22c55e", 2),
+    ] {
         tx.execute(
-            "INSERT INTO board_columns (board_id, value, color, ord, hidden) VALUES (?1,?2,?3,?4,0)",
-            params![b3, val, color, ord],
+            "INSERT INTO board_columns (board_id, property, value, color, ord, hidden) VALUES (?1,?2,?3,?4,?5,0)",
+            params![b3, "Shelf", val, color, ord],
         )?;
     }
 
@@ -209,7 +225,10 @@ fn seed(conn: &mut Connection) -> rusqlite::Result<()> {
         "INSERT INTO app_meta (key, value) VALUES ('active_board_id', ?1)",
         params![b1],
     )?;
-    tx.execute("INSERT INTO app_meta (key, value) VALUES ('schema_version', '1')", [])?;
+    tx.execute(
+        "INSERT INTO app_meta (key, value) VALUES ('schema_version', '1')",
+        [],
+    )?;
 
     tx.commit()?;
     Ok(())
@@ -222,9 +241,8 @@ pub fn load_snapshot(conn: &Connection) -> rusqlite::Result<Snapshot> {
     let mut cards: IndexMap<String, Card> = IndexMap::new();
 
     {
-        let mut stmt = conn.prepare(
-            "SELECT id, title, notes, created, ord FROM cards ORDER BY created, rowid",
-        )?;
+        let mut stmt = conn
+            .prepare("SELECT id, title, notes, created, ord FROM cards ORDER BY created, rowid")?;
         let rows = stmt.query_map([], |r| {
             let id: String = r.get(0)?;
             let title: String = r.get(1)?;
@@ -250,9 +268,8 @@ pub fn load_snapshot(conn: &Connection) -> rusqlite::Result<Snapshot> {
     }
 
     {
-        let mut stmt = conn.prepare(
-            "SELECT card_id, name, type, value FROM card_props ORDER BY rowid",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT card_id, name, type, value FROM card_props ORDER BY rowid")?;
         let rows = stmt.query_map([], |r| {
             Ok((
                 r.get::<_, String>(0)?,
@@ -270,9 +287,8 @@ pub fn load_snapshot(conn: &Connection) -> rusqlite::Result<Snapshot> {
     }
 
     {
-        let mut stmt = conn.prepare(
-            "SELECT card_id, name, front, title FROM card_promotions ORDER BY rowid",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT card_id, name, front, title FROM card_promotions ORDER BY rowid")?;
         let rows = stmt.query_map([], |r| {
             Ok((
                 r.get::<_, String>(0)?,
@@ -312,9 +328,12 @@ pub fn load_snapshot(conn: &Connection) -> rusqlite::Result<Snapshot> {
                 name,
                 color,
                 group_by,
-                filter: Filter { connector, rules: Vec::new() },
+                filter: Filter {
+                    connector,
+                    rules: Vec::new(),
+                },
                 filter_open,
-                columns: IndexMap::new(),
+                columns_by_property: IndexMap::new(),
                 collapsed: IndexMap::new(),
             });
         }
@@ -342,36 +361,45 @@ pub fn load_snapshot(conn: &Connection) -> rusqlite::Result<Snapshot> {
                 serde_json::Value::String(value.unwrap_or_default())
             };
             if let Some(b) = boards.iter_mut().find(|b| b.id == board_id) {
-                b.filter.rules.push(Rule { id, prop, op, value: rule_value });
+                b.filter.rules.push(Rule {
+                    id,
+                    prop,
+                    op,
+                    value: rule_value,
+                });
             }
         }
     }
 
     {
+        // Ordered by (property, ord) so each property's Vec<Column> is built in
+        // left-to-right order; rebuild `columns_by_property` per board.
         let mut stmt = conn.prepare(
-            "SELECT board_id, value, color, ord, hidden FROM board_columns ORDER BY ord, rowid",
+            "SELECT board_id, property, value, color, hidden FROM board_columns ORDER BY property, ord, rowid",
         )?;
         let rows = stmt.query_map([], |r| {
             Ok((
                 r.get::<_, String>(0)?,
                 r.get::<_, String>(1)?,
-                r.get::<_, Option<String>>(2)?,
-                r.get::<_, Option<i64>>(3)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, Option<String>>(3)?,
                 r.get::<_, i64>(4)? != 0,
             ))
         })?;
         for row in rows {
-            let (board_id, value, color, ord, hidden) = row?;
+            let (board_id, property, value, color, hidden) = row?;
             if let Some(b) = boards.iter_mut().find(|b| b.id == board_id) {
-                b.columns.insert(value, Column { color, order: ord, hidden: Some(hidden) });
+                b.columns_by_property.entry(property).or_default().push(Column {
+                    value,
+                    color,
+                    hidden: Some(hidden),
+                });
             }
         }
     }
 
     {
-        let mut stmt = conn.prepare(
-            "SELECT board_id, card_id, collapsed FROM card_collapsed",
-        )?;
+        let mut stmt = conn.prepare("SELECT board_id, card_id, collapsed FROM card_collapsed")?;
         let rows = stmt.query_map([], |r| {
             Ok((
                 r.get::<_, String>(0)?,
@@ -395,7 +423,11 @@ pub fn load_snapshot(conn: &Connection) -> rusqlite::Result<Snapshot> {
         )
         .unwrap_or(None);
 
-    Ok(Snapshot { cards, boards, active_board_id })
+    Ok(Snapshot {
+        cards,
+        boards,
+        active_board_id,
+    })
 }
 
 #[cfg(test)]
@@ -424,7 +456,11 @@ mod tests {
         let b0 = &snap.boards[0];
         assert_eq!(b0.name, "Product Sprint");
         assert_eq!(b0.group_by.as_deref(), Some("Status"));
-        assert_eq!(b0.columns.len(), 4);
+        let status_cols = &b0.columns_by_property["Status"];
+        assert_eq!(status_cols.len(), 5); // 4 populated + empty "Archived"
+        // order preserved from seed; empty column kept
+        let vals: Vec<&str> = status_cols.iter().map(|c| c.value.as_str()).collect();
+        assert_eq!(vals, vec!["Backlog", "In progress", "Blocked", "Done", "Archived"]);
         assert_eq!(snap.active_board_id.as_deref(), Some(b0.id.as_str()));
 
         let b1 = &snap.boards[1];
@@ -439,5 +475,18 @@ mod tests {
         assert_eq!(names, vec!["Status", "Priority", "Due", "Estimate", "Area"]);
         let promo = first.promotions.get("Priority").unwrap();
         assert!(promo.front && promo.title);
+    }
+
+    #[test]
+    fn snapshot_serializes_columns_by_property_camelcase() {
+        // Guards the IPC shape the frontend consumes (Board.columnsByProperty).
+        let mut conn = mem();
+        ensure_seeded(&mut conn).unwrap();
+        let snap = load_snapshot(&conn).unwrap();
+        let json = serde_json::to_string(&snap).unwrap();
+        assert!(json.contains("\"columnsByProperty\""));
+        assert!(!json.contains("\"columns_by_property\""));
+        // a column object carries its `value`
+        assert!(json.contains("\"value\":\"Backlog\""));
     }
 }

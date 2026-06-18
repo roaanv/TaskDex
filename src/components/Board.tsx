@@ -7,11 +7,11 @@
 // and the drag-dim is driven from React state cleared on dragend AND on drop — so
 // the dragged node is never unmounted mid-drag and its dragend always fires.
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useStore } from '../store/StoreContext';
 import { useTheme } from '../theme/ThemeContext';
 import { FONT_MONO, FONT_UI, tint, type Theme } from '../theme/tokens';
-import { colorFor, evalFilter, PALETTE } from '../model';
+import { colorFor, evalFilter, PALETTE, presentValues, reconcileColumns } from '../model';
 import type { Board as BoardModel, Registry } from '../model';
 import { IndexCard, TypeGlyph } from './IndexCard';
 import { FilterPanel } from './FilterPanel';
@@ -20,22 +20,20 @@ interface ColView {
   value: string;
   color: string;
   hidden: boolean;
-  order: number;
 }
 
-function orderedColumns(board: BoardModel, presentValues: string[]): ColView[] {
-  const all = new Set<string>([...Object.keys(board.columns || {}), ...presentValues]);
-  const list: ColView[] = [...all].map((value, i) => {
-    const cfg = (board.columns || {})[value] || {};
-    return {
-      value,
-      color: cfg.color || colorFor(i + 1),
-      hidden: !!cfg.hidden,
-      order: cfg.order ?? 1000,
-    };
-  });
-  list.sort((a, b) => a.order - b.order || a.value.localeCompare(b.value));
-  return list;
+/**
+ * The display columns for a board's current group-by: the stored, reconciled
+ * column list (position = array index — no name-based sort). Newly-present values
+ * are appended; empty/hidden columns are kept. Persisting the reconciled list is
+ * handled by a reconcile effect in `Board`.
+ */
+function viewColumns(board: BoardModel, groupBy: string, present: string[]): ColView[] {
+  return reconcileColumns(board.columnsByProperty[groupBy], present).map((c, i) => ({
+    value: c.value,
+    color: c.color || colorFor(i + 1),
+    hidden: !!c.hidden,
+  }));
 }
 
 /* ---- shared button / menu styling ---- */
@@ -282,6 +280,12 @@ function IconBtn({
   );
 }
 
+interface DragHandleProps {
+  draggable: boolean;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
+}
+
 function ColumnHead({
   board,
   col,
@@ -289,6 +293,8 @@ function ColumnHead({
   isFirst,
   isLast,
   onAdd,
+  onRename,
+  dragHandle,
 }: {
   board: BoardModel;
   col: ColView;
@@ -296,6 +302,8 @@ function ColumnHead({
   isFirst: boolean;
   isLast: boolean;
   onAdd: () => void;
+  onRename: (from: string, to: string) => void;
+  dragHandle: DragHandleProps;
 }) {
   const { dispatch } = useStore();
   const t = useTheme();
@@ -305,18 +313,39 @@ function ColumnHead({
   useEffect(() => setName(col.value), [col.value]);
   const saveRename = () => {
     setEditing(false);
-    if (name.trim() && name !== col.value && board.groupBy) {
-      dispatch({
-        type: 'renameColumn',
-        boardId: board.id,
-        prop: board.groupBy,
-        from: col.value,
-        to: name.trim(),
-      });
-    }
+    // Board owns the rename so it can freeze the current column order (preserving
+    // this column's position); ColumnHead only knows about itself.
+    onRename(col.value, name);
   };
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 4px 12px', position: 'relative' }}>
+      <span
+        {...dragHandle}
+        title="Drag to reorder column"
+        className="td-col-grip"
+        style={{
+          display: 'grid',
+          placeItems: 'center',
+          width: 14,
+          height: 18,
+          flex: 'none',
+          cursor: 'grab',
+          color: t.muted,
+          marginLeft: -2,
+        }}
+        // the rename input lives in the same header; don't let a click on the
+        // grip bubble into editing, and keep text selection from hijacking drag.
+        onClick={(e) => e.stopPropagation()}
+      >
+        <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor" aria-hidden>
+          <circle cx="2" cy="2" r="1" />
+          <circle cx="6" cy="2" r="1" />
+          <circle cx="2" cy="6" r="1" />
+          <circle cx="6" cy="6" r="1" />
+          <circle cx="2" cy="10" r="1" />
+          <circle cx="6" cy="10" r="1" />
+        </svg>
+      </span>
       <span
         onClick={() => setPalOpen((o) => !o)}
         title="Column color"
@@ -352,7 +381,7 @@ function ColumnHead({
             <span
               key={c}
               onClick={() => {
-                dispatch({ type: 'setColumnConfig', boardId: board.id, value: col.value, patch: { color: c } });
+                dispatch({ type: 'setColumnConfig', boardId: board.id, property: board.groupBy as string, value: col.value, patch: { color: c } });
                 setPalOpen(false);
               }}
               style={{
@@ -413,21 +442,44 @@ function ColumnHead({
       )}
       <span style={{ fontSize: 11.5, color: t.muted, fontFamily: FONT_MONO }}>{count}</span>
       <div className="td-col-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-        <IconBtn dim={isFirst} title="Move left" onClick={() => dispatch({ type: 'reorderColumn', boardId: board.id, value: col.value, dir: 'left' })}>
+        <IconBtn dim={isFirst} title="Move left" onClick={() => dispatch({ type: 'reorderColumn', boardId: board.id, property: board.groupBy as string, value: col.value, dir: 'left' })}>
           <path d="M7.5 3 4 6.5 7.5 10" />
         </IconBtn>
-        <IconBtn dim={isLast} title="Move right" onClick={() => dispatch({ type: 'reorderColumn', boardId: board.id, value: col.value, dir: 'right' })}>
+        <IconBtn dim={isLast} title="Move right" onClick={() => dispatch({ type: 'reorderColumn', boardId: board.id, property: board.groupBy as string, value: col.value, dir: 'right' })}>
           <path d="M5 3 8.5 6.5 5 10" />
         </IconBtn>
-        <IconBtn title="Hide column" onClick={() => dispatch({ type: 'setColumnConfig', boardId: board.id, value: col.value, patch: { hidden: true } })}>
+        <IconBtn title="Hide column" onClick={() => dispatch({ type: 'setColumnConfig', boardId: board.id, property: board.groupBy as string, value: col.value, patch: { hidden: true } })}>
           <path d="M1.5 6.5S3.5 3 6.5 3s5 3.5 5 3.5-2 3.5-5 3.5-5-3.5-5-3.5z" />
           <circle cx="6.5" cy="6.5" r="1.4" />
         </IconBtn>
+        {count === 0 && (
+          <IconBtn title="Remove empty column" onClick={() => dispatch({ type: 'removeColumn', boardId: board.id, property: board.groupBy as string, value: col.value })}>
+            <path d="M2.5 3.5h8M5 3.5V2.5h3v1M4 3.5l.5 7h4l.5-7" />
+          </IconBtn>
+        )}
         <IconBtn title="Add card here" onClick={onAdd}>
           <path d="M6.5 3v7M3 6.5h7" />
         </IconBtn>
       </div>
     </div>
+  );
+}
+
+/* ---- vertical insertion indicator shown between columns while dragging ---- */
+function ColInsertBar({ t }: { t: Theme }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        width: 3,
+        alignSelf: 'stretch',
+        minHeight: 120,
+        flex: 'none',
+        background: t.primary,
+        borderRadius: 2,
+        boxShadow: t.glow ? `0 0 8px ${t.primary}` : 'none',
+      }}
+    />
   );
 }
 
@@ -437,7 +489,8 @@ function AddColumn({ board }: { board: BoardModel }) {
   const [adding, setAdding] = useState(false);
   const [val, setVal] = useState('');
   const commit = () => {
-    if (val.trim()) dispatch({ type: 'addColumn', boardId: board.id, value: val.trim() });
+    if (val.trim() && board.groupBy)
+      dispatch({ type: 'addColumn', boardId: board.id, property: board.groupBy, value: val.trim() });
     setVal('');
     setAdding(false);
   };
@@ -500,12 +553,40 @@ export function Board() {
   const draggedId = useRef<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ col: string | null; beforeId: string | null } | null>(null);
+  // Column drag/drop — kept separate from card DnD via its own ref so the two
+  // never interfere. `colDropTarget.before` is the column value to insert before
+  // (null = drop at the end).
+  const draggedColRef = useRef<string | null>(null);
+  const [draggingCol, setDraggingCol] = useState<string | null>(null);
+  const [colDropTarget, setColDropTarget] = useState<{ before: string | null } | null>(null);
 
   const allCards = useMemo(() => Object.values(state.cards), [state.cards]);
   const filtered = useMemo(
     () => allCards.filter((c) => evalFilter(c, board ? board.filter : null)),
     [allCards, board],
   );
+
+  // All present values for the active group-by (across the whole card pool, so
+  // the stored list mirrors the backend, which has no filter notion).
+  const presentForGroup = useMemo(
+    () => (board?.groupBy ? presentValues(state.cards, board.groupBy) : []),
+    [board, state.cards],
+  );
+
+  // Reconcile + persist the active board's column list for its group-by: seed
+  // (alphabetically) on first use and append newly-present values, so the stored
+  // list stays authoritative (spec §3.2 / §3.6).
+  useEffect(() => {
+    if (!board || !board.groupBy) return;
+    const stored = board.columnsByProperty[board.groupBy];
+    const desired = reconcileColumns(stored, presentForGroup).map((c) => c.value);
+    const current = (stored ?? []).map((c) => c.value);
+    const drifted =
+      current.length !== desired.length || current.some((v, i) => v !== desired[i]);
+    if (drifted) {
+      dispatch({ type: 'reorderColumns', boardId: board.id, property: board.groupBy, order: desired });
+    }
+  }, [board, presentForGroup, dispatch]);
 
   if (!board) {
     return (
@@ -520,19 +601,9 @@ export function Board() {
 
   const grouped = !!board.groupBy;
   const groupBy = board.groupBy as string;
-  let columns: ColView[] = [];
-  if (grouped) {
-    const present = [
-      ...new Set(
-        filtered
-          .filter((c) => c.props[groupBy] && String(c.props[groupBy].value).trim() !== '')
-          .map((c) => String(c.props[groupBy].value)),
-      ),
-    ];
-    columns = orderedColumns(board, present);
-  }
+  const columns: ColView[] = grouped ? viewColumns(board, groupBy, presentForGroup) : [];
   const visibleColumns = columns.filter((c) => !c.hidden);
-  const hiddenCols = grouped ? orderedColumns(board, []).filter((c) => c.hidden) : [];
+  const hiddenCols = columns.filter((c) => c.hidden);
 
   const cardsFor = (value: string) =>
     filtered.filter((c) => c.props[groupBy] && String(c.props[groupBy].value) === String(value)).sort(sortByOrd);
@@ -574,6 +645,48 @@ export function Board() {
     setDropTarget(null);
   };
 
+  const clearColDrag = () => {
+    draggedColRef.current = null;
+    setDraggingCol(null);
+    setColDropTarget(null);
+  };
+
+  const colDragProps = (value: string): DragHandleProps => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => {
+      e.dataTransfer.effectAllowed = 'move';
+      try {
+        e.dataTransfer.setData('text/plain', 'col:' + value);
+      } catch {
+        /* ignore */
+      }
+      draggedColRef.current = value;
+      setDraggingCol(value);
+    },
+    onDragEnd: clearColDrag,
+  });
+
+  // Reposition the dragged column before `before` (null = move to the end).
+  // Builds the new full ordered value list and persists sequential `order`s.
+  const doColDrop = (before: string | null) => {
+    const value = draggedColRef.current;
+    if (!value || value === before) return clearColDrag();
+    const full = columns.map((c) => c.value).filter((v) => v !== value);
+    const idx = before != null ? full.indexOf(before) : full.length;
+    full.splice(idx < 0 ? full.length : idx, 0, value);
+    dispatch({ type: 'reorderColumns', boardId: board.id, property: groupBy, order: full });
+    clearColDrag();
+  };
+
+  // Rename a column: a single in-place value change. Position is the column's
+  // index in the stored list, so renaming never moves it (no `order` needed). The
+  // reducer rejects the rename if `to` already exists for this property.
+  const renameColumn = (from: string, to: string) => {
+    const trimmed = to.trim();
+    if (!grouped || !trimmed || trimmed === from) return;
+    dispatch({ type: 'renameColumn', prop: groupBy, from, to: trimmed });
+  };
+
   const addCardToColumn = (colValue: string | null) => {
     const props: Record<string, { type: import('../model').PropType; value: string }> = {};
     if (grouped && colValue != null) {
@@ -596,6 +709,9 @@ export function Board() {
     <div
       key={c.id}
       onDragOver={(e) => {
+        // During a column drag, do nothing and let the event bubble to the
+        // column container which owns column drop positioning.
+        if (draggedColRef.current) return;
         if (draggedId.current) {
           e.preventDefault();
           // stop the column's onDragOver from overwriting beforeId with null,
@@ -605,6 +721,7 @@ export function Board() {
         }
       }}
       onDrop={(e) => {
+        if (draggedColRef.current) return; // let the column container handle it
         e.preventDefault();
         e.stopPropagation();
         doDrop(colValue, c.id);
@@ -661,7 +778,7 @@ export function Board() {
             {hiddenCols.map((c) => (
               <button
                 key={c.value}
-                onClick={() => dispatch({ type: 'setColumnConfig', boardId: board.id, value: c.value, patch: { hidden: false } })}
+                onClick={() => dispatch({ type: 'setColumnConfig', boardId: board.id, property: groupBy, value: c.value, patch: { hidden: false } })}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -689,59 +806,85 @@ export function Board() {
             <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', minHeight: '100%' }}>
               {visibleColumns.map((col, i) => {
                 const cs = cardsFor(col.value);
+                const nextValue = visibleColumns[i + 1] ? visibleColumns[i + 1].value : null;
+                const showBarBefore = !!colDropTarget && colDropTarget.before === col.value && draggingCol !== col.value;
                 return (
-                  <div
-                    key={col.value}
-                    style={{ width: 286, flex: 'none', display: 'flex', flexDirection: 'column' }}
-                    onDragOver={(e) => {
-                      if (draggedId.current) {
-                        e.preventDefault();
-                        setDropTarget({ col: col.value, beforeId: null });
-                      }
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      doDrop(col.value, null);
-                    }}
-                  >
-                    <ColumnHead
-                      board={board}
-                      col={col}
-                      count={cs.length}
-                      isFirst={i === 0}
-                      isLast={i === visibleColumns.length - 1}
-                      onAdd={() => addCardToColumn(col.value)}
-                    />
+                  <Fragment key={col.value}>
+                    {showBarBefore && <ColInsertBar t={t} />}
                     <div
                       style={{
-                        background: tint(col.color, '0d'),
-                        border: `1px solid ${tint(col.color, '2b')}`,
-                        borderRadius: 16,
-                        padding: 11,
-                        minHeight: 80,
-                        flex: 1,
-                        boxShadow: `inset 0 1px 0 ${tint(col.color, '22')}`,
+                        width: 286,
+                        flex: 'none',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        opacity: draggingCol === col.value ? 0.4 : 1,
+                      }}
+                      onDragOver={(e) => {
+                        if (draggedColRef.current) {
+                          e.preventDefault();
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const leftHalf = e.clientX < rect.left + rect.width / 2;
+                          setColDropTarget({ before: leftHalf ? col.value : nextValue });
+                          return;
+                        }
+                        if (draggedId.current) {
+                          e.preventDefault();
+                          setDropTarget({ col: col.value, beforeId: null });
+                        }
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (draggedColRef.current) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const leftHalf = e.clientX < rect.left + rect.width / 2;
+                          doColDrop(leftHalf ? col.value : nextValue);
+                          return;
+                        }
+                        doDrop(col.value, null);
                       }}
                     >
-                      {cs.map((c) => renderSlot(c, col.value, col.color))}
-                      {dropTarget && dropTarget.col === col.value && dropTarget.beforeId === null && draggedId.current && (
-                        <div
-                          style={{
-                            height: 3,
-                            background: col.color,
-                            borderRadius: 2,
-                            margin: '2px 0',
-                            boxShadow: t.glow ? `0 0 8px ${col.color}` : 'none',
-                          }}
-                        />
-                      )}
-                      <button onClick={() => addCardToColumn(col.value)} style={addBtnStyle}>
-                        + Add card
-                      </button>
+                      <ColumnHead
+                        board={board}
+                        col={col}
+                        count={cs.length}
+                        isFirst={i === 0}
+                        isLast={i === visibleColumns.length - 1}
+                        onAdd={() => addCardToColumn(col.value)}
+                        onRename={renameColumn}
+                        dragHandle={colDragProps(col.value)}
+                      />
+                      <div
+                        style={{
+                          background: tint(col.color, '0d'),
+                          border: `1px solid ${tint(col.color, '2b')}`,
+                          borderRadius: 16,
+                          padding: 11,
+                          minHeight: 80,
+                          flex: 1,
+                          boxShadow: `inset 0 1px 0 ${tint(col.color, '22')}`,
+                        }}
+                      >
+                        {cs.map((c) => renderSlot(c, col.value, col.color))}
+                        {dropTarget && dropTarget.col === col.value && dropTarget.beforeId === null && draggedId.current && (
+                          <div
+                            style={{
+                              height: 3,
+                              background: col.color,
+                              borderRadius: 2,
+                              margin: '2px 0',
+                              boxShadow: t.glow ? `0 0 8px ${col.color}` : 'none',
+                            }}
+                          />
+                        )}
+                        <button onClick={() => addCardToColumn(col.value)} style={addBtnStyle}>
+                          + Add card
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  </Fragment>
                 );
               })}
+              {colDropTarget && colDropTarget.before === null && draggedColRef.current && <ColInsertBar t={t} />}
               <AddColumn board={board} />
             </div>
           ) : (

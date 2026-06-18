@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { reducer } from './reducer';
+import { reconcileColumns, reducer } from './reducer';
 import type { Board, Card, State } from './types';
 
 function baseState(): State {
@@ -11,20 +11,37 @@ function baseState(): State {
   const board: Board = {
     id: 'b1', name: 'Board', color: '#fff', groupBy: 'Status',
     filter: { connector: 'AND', rules: [] }, filterOpen: false,
-    columns: { Todo: { color: '#111', order: 0 }, Done: { color: '#222', order: 1 } },
+    columnsByProperty: { Status: [{ value: 'Todo', color: '#111' }, { value: 'Done', color: '#222' }] },
     collapsed: {},
   };
   return { cards, boards: [board], activeBoardId: 'b1', version: 1 };
 }
 
 describe('reducer', () => {
-  it('renameColumn rewrites the value across ALL cards and the board column key', () => {
-    const next = reducer(baseState(), { type: 'renameColumn', boardId: 'b1', prop: 'Status', from: 'Todo', to: 'In Progress' });
-    expect(next.cards.a.props.Status.value).toBe('In Progress');
-    expect(next.cards.b.props.Status.value).toBe('In Progress');
+  const statusValues = (s: State) => s.boards[0].columnsByProperty.Status.map((c) => c.value);
+
+  it('renameColumn rewrites the value across ALL cards and keeps the column position', () => {
+    // 'Todo' -> 'Zzz' would sort to the end alphabetically; it must NOT move.
+    const next = reducer(baseState(), { type: 'renameColumn', prop: 'Status', from: 'Todo', to: 'Zzz' });
+    expect(next.cards.a.props.Status.value).toBe('Zzz');
+    expect(next.cards.b.props.Status.value).toBe('Zzz');
     expect(next.cards.c.props.Status.value).toBe('Done'); // untouched
-    expect(Object.keys(next.boards[0].columns)).toContain('In Progress');
-    expect(Object.keys(next.boards[0].columns)).not.toContain('Todo');
+    expect(statusValues(next)).toEqual(['Zzz', 'Done']); // index 0 preserved
+    expect(next.boards[0].columnsByProperty.Status[0].color).toBe('#111'); // config carried
+  });
+
+  it('renameColumn is a no-op when the target name already exists (collision)', () => {
+    const before = baseState();
+    const next = reducer(before, { type: 'renameColumn', prop: 'Status', from: 'Todo', to: 'Done' });
+    expect(next).toBe(before); // unchanged reference: nothing happened
+    expect(statusValues(next)).toEqual(['Todo', 'Done']);
+    expect(next.cards.a.props.Status.value).toBe('Todo');
+  });
+
+  it('removeColumn drops the listing but never touches card data', () => {
+    const next = reducer(baseState(), { type: 'removeColumn', boardId: 'b1', property: 'Status', value: 'Done' });
+    expect(statusValues(next)).toEqual(['Todo']);
+    expect(next.cards.c.props.Status.value).toBe('Done'); // card value retained
   });
 
   it('reorderBoards rebuilds the board list in the given id order', () => {
@@ -70,9 +87,30 @@ describe('reducer', () => {
     expect(next.cards.a.props.Due).toEqual({ type: 'date', value: '2024-06-22' });
   });
 
-  it('addColumn appends after the max order', () => {
-    const next = reducer(baseState(), { type: 'addColumn', boardId: 'b1', value: 'Blocked' });
-    expect(next.boards[0].columns.Blocked.order).toBe(2);
+  it('addColumn appends to the end of the property list', () => {
+    const next = reducer(baseState(), { type: 'addColumn', boardId: 'b1', property: 'Status', value: 'Blocked' });
+    expect(statusValues(next)).toEqual(['Todo', 'Done', 'Blocked']);
+  });
+
+  it('reorderColumns rebuilds the list in the given order, preserving config', () => {
+    const next = reducer(baseState(), { type: 'reorderColumns', boardId: 'b1', property: 'Status', order: ['Done', 'Todo'] });
+    expect(statusValues(next)).toEqual(['Done', 'Todo']);
+    expect(next.boards[0].columnsByProperty.Status[0].color).toBe('#222'); // Done's config preserved
+  });
+
+  it('reorderColumns creates a bare entry for a previously-unstored value', () => {
+    const next = reducer(baseState(), { type: 'reorderColumns', boardId: 'b1', property: 'Status', order: ['Backlog', 'Todo', 'Done'] });
+    expect(statusValues(next)).toEqual(['Backlog', 'Todo', 'Done']);
+  });
+
+  it('reconcileColumns seeds alphabetically, then appends new values keeping order', () => {
+    expect(reconcileColumns(undefined, ['Todo', 'Done', 'Backlog']).map((c) => c.value)).toEqual([
+      'Backlog', 'Done', 'Todo', // alphabetical seed
+    ]);
+    const stored = [{ value: 'Todo' }, { value: 'Done' }];
+    expect(reconcileColumns(stored, ['Todo', 'Done', 'New']).map((c) => c.value)).toEqual([
+      'Todo', 'Done', 'New', // appended at the end, existing order kept
+    ]);
   });
 
   it('addCard uses a provided id and created timestamp', () => {
