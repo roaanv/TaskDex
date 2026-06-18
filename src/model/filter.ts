@@ -52,6 +52,9 @@ export function ruleMatch(card: Card, rule: Rule): boolean {
 }
 
 export function evalFilter(card: Card, filter: Filter | null | undefined): boolean {
+  // A disabled filter keeps its rules but ignores them — every card passes.
+  // `enabled` is optional; only an explicit `false` disables (undefined = on).
+  if (filter && filter.enabled === false) return true;
   if (!filter || !filter.rules || filter.rules.length === 0) return true;
   const results = filter.rules.map((r) => ruleMatch(card, r));
   return filter.connector === 'OR' ? results.some(Boolean) : results.every(Boolean);

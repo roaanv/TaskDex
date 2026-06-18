@@ -48,6 +48,13 @@ export interface Rule {
 export interface Filter {
   connector: 'AND' | 'OR';
   rules: Rule[];
+  /**
+   * Whether the filter is active. When `false`, rules are kept but ignored so
+   * the board shows every card (see `evalFilter`). Optional for backward
+   * compatibility: a missing flag (filters persisted before this field existed)
+   * is treated as enabled.
+   */
+  enabled?: boolean;
 }
 
 /**

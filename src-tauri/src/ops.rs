@@ -312,6 +312,12 @@ pub fn update_board(conn: &mut Connection, id: &str, patch: &Value) -> rusqlite:
                 params![id, conn_str],
             )?;
         }
+        if let Some(enabled) = filter.get("enabled").and_then(Value::as_bool) {
+            tx.execute(
+                "UPDATE boards SET filter_enabled = ?2 WHERE id = ?1",
+                params![id, enabled as i64],
+            )?;
+        }
         tx.execute(
             "DELETE FROM board_filter_rules WHERE board_id = ?1",
             params![id],
@@ -564,7 +570,6 @@ mod tests {
     }
 
     #[test]
-<<<<<<< HEAD
     fn reorder_boards_persists_new_order() {
         let mut conn = seeded();
         let ids: Vec<String> = load_snapshot(&conn).unwrap().boards.iter().map(|b| b.id.clone()).collect();
@@ -577,10 +582,7 @@ mod tests {
     }
 
     #[test]
-    fn rename_column_rewrites_all_cards_and_board_key() {
-=======
     fn reorder_columns_assigns_sequential_order_from_the_list() {
->>>>>>> fix-column-rename
         let mut conn = seeded();
         let board_id = load_snapshot(&conn).unwrap().boards[0].id.clone(); // grouped by Status
         let order = vec![
@@ -718,5 +720,41 @@ mod tests {
         assert_eq!(b.filter.rules.len(), 2);
         assert_eq!(b.filter.rules[1].op, "between");
         assert_eq!(b.filter.rules[1].value, serde_json::json!(["1", "5"]));
+    }
+
+    #[test]
+    fn update_board_persists_filter_enabled_toggle() {
+        let mut conn = seeded();
+        let board_id = load_snapshot(&conn).unwrap().boards[0].id.clone();
+
+        // Boards start enabled (migration default).
+        let snap = load_snapshot(&conn).unwrap();
+        assert!(snap.boards[0].filter.enabled);
+
+        // Disabling keeps the rules but flips the flag, and it survives a reload.
+        update_board(
+            &mut conn,
+            &board_id,
+            &serde_json::json!({
+                "filter": {
+                    "connector": "AND",
+                    "enabled": false,
+                    "rules": [{ "id": "r_a", "prop": "Priority", "op": "is", "value": "High" }]
+                }
+            }),
+        )
+        .unwrap();
+        let b = load_snapshot(&conn).unwrap().boards[0].clone();
+        assert!(!b.filter.enabled, "disabled flag should persist");
+        assert_eq!(b.filter.rules.len(), 1, "rules are kept while disabled");
+
+        // Re-enabling flips it back.
+        update_board(
+            &mut conn,
+            &board_id,
+            &serde_json::json!({ "filter": { "connector": "AND", "enabled": true, "rules": [] } }),
+        )
+        .unwrap();
+        assert!(load_snapshot(&conn).unwrap().boards[0].filter.enabled);
     }
 }

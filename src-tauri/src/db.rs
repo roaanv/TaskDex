@@ -16,6 +16,7 @@ use crate::model::{join_body, Board, Card, Column, Filter, Promotion, Prop, Rule
 pub struct Db(pub Mutex<Connection>);
 
 const MIGRATION_0001: &str = include_str!("../migrations/0001_init.sql");
+const MIGRATION_0002: &str = include_str!("../migrations/0002_filter_enabled.sql");
 
 /// Open the database, enable foreign keys, and run migrations.
 pub fn open(path: &std::path::Path) -> rusqlite::Result<Connection> {
@@ -32,6 +33,10 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     if version < 1 {
         conn.execute_batch(MIGRATION_0001)?;
         conn.pragma_update(None, "user_version", 1)?;
+    }
+    if version < 2 {
+        conn.execute_batch(MIGRATION_0002)?;
+        conn.pragma_update(None, "user_version", 2)?;
     }
     Ok(())
 }
@@ -309,7 +314,7 @@ pub fn load_snapshot(conn: &Connection) -> rusqlite::Result<Snapshot> {
     let mut boards: Vec<Board> = Vec::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT id, name, color, group_by, filter_connector, filter_open FROM boards ORDER BY ord, rowid",
+            "SELECT id, name, color, group_by, filter_connector, filter_open, filter_enabled FROM boards ORDER BY ord, rowid",
         )?;
         let rows = stmt.query_map([], |r| {
             Ok((
@@ -319,10 +324,11 @@ pub fn load_snapshot(conn: &Connection) -> rusqlite::Result<Snapshot> {
                 r.get::<_, Option<String>>(3)?,
                 r.get::<_, String>(4)?,
                 r.get::<_, i64>(5)? != 0,
+                r.get::<_, i64>(6)? != 0,
             ))
         })?;
         for row in rows {
-            let (id, name, color, group_by, connector, filter_open) = row?;
+            let (id, name, color, group_by, connector, filter_open, filter_enabled) = row?;
             boards.push(Board {
                 id,
                 name,
@@ -331,6 +337,7 @@ pub fn load_snapshot(conn: &Connection) -> rusqlite::Result<Snapshot> {
                 filter: Filter {
                     connector,
                     rules: Vec::new(),
+                    enabled: filter_enabled,
                 },
                 filter_open,
                 columns_by_property: IndexMap::new(),

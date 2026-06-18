@@ -206,7 +206,10 @@ export function FilterPanel({
   const t = useTheme();
   const open = !!board.filterOpen;
   const filter = board.filter || { connector: 'AND', rules: [] };
+  const enabled = filter.enabled !== false; // default on; only explicit false disables
   const propNames = Object.keys(registry);
+  const toggleEnabled = () =>
+    dispatch({ type: 'updateBoard', id: board.id, patch: { filter: { ...filter, enabled: !enabled } } });
   const addRule = () => {
     const prop = propNames[0] || '';
     const type = registry[prop] ? registry[prop].type : 'text';
@@ -251,6 +254,38 @@ export function FilterPanel({
         >
           Filters
         </span>
+        {filter.rules.length > 0 && (
+          <button
+            onClick={toggleEnabled}
+            title={enabled ? 'Disable filter (keeps your rules)' : 'Enable filter'}
+            aria-pressed={enabled}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              border: `1px solid ${enabled ? t.primary : t.border}`,
+              background: enabled ? t.primary : t.surface,
+              color: enabled ? '#fff' : t.muted,
+              borderRadius: 999,
+              padding: '4px 11px',
+              cursor: 'pointer',
+              fontSize: 11.5,
+              fontWeight: 700,
+              fontFamily: FONT_UI,
+              boxShadow: enabled && t.glow ? `0 0 12px -3px ${t.primary}` : 'none',
+            }}
+          >
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: enabled ? '#fff' : t.faint,
+              }}
+            />
+            {enabled ? 'On' : 'Off'}
+          </button>
+        )}
         {filter.rules.length > 1 && (
           <div style={{ display: 'inline-flex', border: `1px solid ${t.border}`, borderRadius: 8, overflow: 'hidden' }}>
             {(['AND', 'OR'] as const).map((c) => (
@@ -310,7 +345,16 @@ export function FilterPanel({
           </button>
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 9,
+          opacity: enabled ? 1 : 0.45,
+          transition: 'opacity .2s ease',
+        }}
+        title={enabled ? undefined : 'Filter is off — rules are kept but ignored'}
+      >
         {filter.rules.map((r, i) => (
           <RuleRow
             key={r.id}

@@ -9,6 +9,18 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
 
 ### Added
 
+- **Enable / disable a filter without clearing its rules.** A single On/Off toggle in the filter
+  panel header (shown once a board has at least one rule) turns the whole filter off — the rules are
+  kept but ignored, so every card shows — and back on. When off, the rule list dims to signal it is
+  inactive. The behaviour lives in one place: `evalFilter` short-circuits to "pass" when
+  `filter.enabled === false` (an optional flag; a missing value means enabled, so filters saved
+  before this field keep working). Persisted across restarts via a new `filter_enabled` column on
+  `boards` (migration `0002_filter_enabled.sql`, default `1`), written by `update_board` and read by
+  the snapshot loader. Covered by `evalFilter` unit tests and a Rust round-trip persistence test.
+- **Fixed an unresolved merge conflict committed in `src-tauri/src/ops.rs`** (from the "Rename
+  columns" commit) that left conflict markers in the test module and prevented the Rust backend from
+  compiling. Resolved by keeping both tests (`reorder_boards_persists_new_order` and
+  `reorder_columns_assigns_sequential_order_from_the_list`).
 - **Column drag-and-drop reordering.** A grip handle on each column header lets you drag a column
   to a new position; a vertical insertion indicator marks the drop point (left half of a column =
   drop before it, right half = drop after) and the dragged column dims while in flight. Column and

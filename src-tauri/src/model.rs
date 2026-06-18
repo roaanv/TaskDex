@@ -46,10 +46,19 @@ pub struct Rule {
     pub value: serde_json::Value,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Filter {
     pub connector: String,
     pub rules: Vec<Rule>,
+    /// Whether the filter is active. When `false`, the rules are kept but
+    /// ignored so the board shows every card. Defaults to `true` for filters
+    /// persisted before this field existed (mirrors the TS `Filter.enabled?`).
+    #[serde(default = "default_true")]
+    pub enabled: bool,
 }
 
 /// One column within a property's ordered list (`Board.columns_by_property`).
