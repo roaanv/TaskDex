@@ -79,4 +79,19 @@ describe('evalFilter', () => {
     };
     expect(evalFilter(c, f)).toBe(true);
   });
+  it('disabled filter ignores rules → all cards pass', () => {
+    const rules = [rule('Area', 'is', 'Design'), rule('Priority', 'is', 'Low')];
+    // Would normally exclude this card under AND…
+    expect(evalFilter(c, { connector: 'AND', rules })).toBe(false);
+    // …but disabling keeps the rules and passes the card anyway.
+    expect(evalFilter(c, { connector: 'AND', rules, enabled: false })).toBe(true);
+  });
+  it('enabled:true behaves like a normal filter', () => {
+    const f: Filter = { connector: 'AND', rules: [rule('Area', 'is', 'Design')], enabled: true };
+    expect(evalFilter(c, f)).toBe(false);
+  });
+  it('missing enabled flag is treated as enabled (backward compatible)', () => {
+    const f: Filter = { connector: 'AND', rules: [rule('Area', 'is', 'Design')] };
+    expect(evalFilter(c, f)).toBe(false);
+  });
 });

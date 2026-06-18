@@ -105,7 +105,7 @@ export function reducer(state: State, action: Action): State {
         name: a.name || 'New board',
         color: a.color || colorFor(state.boards.length + 3),
         groupBy: null,
-        filter: { connector: 'AND', rules: [] },
+        filter: { connector: 'AND', rules: [], enabled: true },
         filterOpen: false,
         columnsByProperty: {},
         collapsed: {},
