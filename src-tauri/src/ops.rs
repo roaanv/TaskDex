@@ -564,7 +564,6 @@ mod tests {
     }
 
     #[test]
-<<<<<<< HEAD
     fn reorder_boards_persists_new_order() {
         let mut conn = seeded();
         let ids: Vec<String> = load_snapshot(&conn).unwrap().boards.iter().map(|b| b.id.clone()).collect();
@@ -577,10 +576,7 @@ mod tests {
     }
 
     #[test]
-    fn rename_column_rewrites_all_cards_and_board_key() {
-=======
     fn reorder_columns_assigns_sequential_order_from_the_list() {
->>>>>>> fix-column-rename
         let mut conn = seeded();
         let board_id = load_snapshot(&conn).unwrap().boards[0].id.clone(); // grouped by Status
         let order = vec![
