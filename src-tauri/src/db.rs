@@ -12,6 +12,10 @@ use rusqlite::{params, Connection};
 
 use crate::model::{join_body, Board, Card, Column, Filter, Promotion, Prop, Rule, Snapshot};
 
+/// Reserved id of the All board — shows every card (ownership filter off) and is
+/// protected from delete/rename. Ensured to exist on every launch.
+pub const ALL_BOARD_ID: &str = "b_all";
+
 /// Managed Tauri state: a single SQLite connection behind a mutex.
 pub struct Db(pub Mutex<Connection>);
 
@@ -46,6 +50,25 @@ pub fn ensure_seeded(conn: &mut Connection) -> rusqlite::Result<()> {
     let board_count: i64 = conn.query_row("SELECT COUNT(*) FROM boards", [], |r| r.get(0))?;
     if board_count == 0 {
         seed(conn)?;
+    }
+    Ok(())
+}
+
+/// Ensure the protected "All" board row exists (idempotent). Pinned first via a
+/// low `ord`. Not a schema change — just a seeded row, so existing databases gain
+/// it on the next launch.
+pub fn ensure_all_board(conn: &mut Connection) -> rusqlite::Result<()> {
+    let exists: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM boards WHERE id = ?1",
+        params![ALL_BOARD_ID],
+        |r| r.get(0),
+    )?;
+    if exists == 0 {
+        conn.execute(
+            "INSERT INTO boards (id, name, color, group_by, filter_connector, filter_open, ord)
+             VALUES (?1, 'All', '#8a93a8', NULL, 'AND', 0, -1)",
+            params![ALL_BOARD_ID],
+        )?;
     }
     Ok(())
 }
@@ -482,6 +505,20 @@ mod tests {
         assert_eq!(names, vec!["Status", "Priority", "Due", "Estimate", "Area"]);
         let promo = first.promotions.get("Priority").unwrap();
         assert!(promo.front && promo.title);
+    }
+
+    #[test]
+    fn ensure_all_board_is_idempotent_and_pins_first() {
+        let mut conn = mem();
+        ensure_seeded(&mut conn).unwrap();
+        ensure_all_board(&mut conn).unwrap();
+        ensure_all_board(&mut conn).unwrap(); // idempotent
+        let snap = load_snapshot(&conn).unwrap();
+        let all: Vec<&Board> = snap.boards.iter().filter(|b| b.id == ALL_BOARD_ID).collect();
+        assert_eq!(all.len(), 1, "exactly one All board");
+        assert_eq!(all[0].name, "All");
+        assert_eq!(snap.boards[0].id, ALL_BOARD_ID, "pinned first (ord -1)");
+        assert_eq!(snap.boards.len(), 4, "3 seed boards + All");
     }
 
     #[test]

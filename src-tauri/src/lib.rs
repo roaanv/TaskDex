@@ -27,6 +27,7 @@ pub fn run() {
 
             let mut conn = db::open(&db_path).expect("failed to open database");
             db::ensure_seeded(&mut conn).expect("failed to seed database");
+            db::ensure_all_board(&mut conn).expect("failed to ensure All board");
 
             app.manage(Db(Mutex::new(conn)));
             Ok(())
