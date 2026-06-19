@@ -251,6 +251,9 @@ pub fn reorder_boards(conn: &mut Connection, order: &[String]) -> rusqlite::Resu
 }
 
 pub fn remove_board(conn: &mut Connection, id: &str) -> rusqlite::Result<()> {
+    if id == crate::db::ALL_BOARD_ID {
+        return Ok(()); // the All board is protected
+    }
     let tx = conn.transaction()?;
     let prev_active: Option<String> = tx
         .query_row(
@@ -280,11 +283,13 @@ pub fn remove_board(conn: &mut Connection, id: &str) -> rusqlite::Result<()> {
 
 pub fn update_board(conn: &mut Connection, id: &str, patch: &Value) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
-    if let Some(name) = pstr(patch, "name") {
-        tx.execute(
-            "UPDATE boards SET name = ?2 WHERE id = ?1",
-            params![id, name],
-        )?;
+    if id != crate::db::ALL_BOARD_ID {
+        if let Some(name) = pstr(patch, "name") {
+            tx.execute(
+                "UPDATE boards SET name = ?2 WHERE id = ?1",
+                params![id, name],
+            )?;
+        }
     }
     if let Some(color) = pstr(patch, "color") {
         tx.execute(
@@ -512,7 +517,7 @@ pub fn remove_column(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::{ensure_seeded, load_snapshot, migrate};
+    use crate::db::{ensure_all_board, ensure_seeded, load_snapshot, migrate, ALL_BOARD_ID};
 
     fn seeded() -> Connection {
         let mut conn = Connection::open_in_memory().unwrap();
@@ -756,5 +761,30 @@ mod tests {
         )
         .unwrap();
         assert!(load_snapshot(&conn).unwrap().boards[0].filter.enabled);
+    }
+
+    #[test]
+    fn remove_board_ignores_the_all_board() {
+        let mut conn = seeded();
+        ensure_all_board(&mut conn).unwrap();
+        remove_board(&mut conn, ALL_BOARD_ID).unwrap();
+        let snap = load_snapshot(&conn).unwrap();
+        assert!(snap.boards.iter().any(|b| b.id == ALL_BOARD_ID), "All board survives");
+    }
+
+    #[test]
+    fn update_board_ignores_a_rename_of_the_all_board() {
+        let mut conn = seeded();
+        ensure_all_board(&mut conn).unwrap();
+        update_board(
+            &mut conn,
+            ALL_BOARD_ID,
+            &serde_json::json!({ "name": "Renamed", "groupBy": "Status" }),
+        )
+        .unwrap();
+        let snap = load_snapshot(&conn).unwrap();
+        let all = snap.boards.iter().find(|b| b.id == ALL_BOARD_ID).unwrap();
+        assert_eq!(all.name, "All", "name unchanged");
+        assert_eq!(all.group_by.as_deref(), Some("Status"), "other fields still applied");
     }
 }
