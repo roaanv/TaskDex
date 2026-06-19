@@ -117,4 +117,31 @@ describe('reducer', () => {
     const next = reducer(baseState(), { type: 'addCard', id: 'z', body: 'Z\n', created: 99 });
     expect(next.cards.z).toMatchObject({ id: 'z', body: 'Z\n', created: 99 });
   });
+
+  it('renaming a board rewrites the Board value on its owned cards', () => {
+    const s = baseState();
+    s.boards[0].name = 'Sprint';
+    s.cards.a.props.Board = { type: 'select', value: 'Sprint' };
+    s.cards.b.props.Board = { type: 'select', value: 'Other' };
+    const next = reducer(s, { type: 'updateBoard', id: 'b1', patch: { name: 'Sprint 2' } });
+    expect(next.boards[0].name).toBe('Sprint 2');
+    expect(next.cards.a.props.Board.value).toBe('Sprint 2'); // owned -> moved
+    expect(next.cards.b.props.Board.value).toBe('Other');    // not owned -> untouched
+  });
+
+  it('the All board cannot be renamed', () => {
+    const s = baseState();
+    s.boards[0] = { ...s.boards[0], id: 'b_all', name: 'All' };
+    const next = reducer({ ...s, activeBoardId: 'b_all' }, { type: 'updateBoard', id: 'b_all', patch: { name: 'Renamed', groupBy: 'Status' } });
+    expect(next.boards[0].name).toBe('All');         // name change dropped
+    expect(next.boards[0].groupBy).toBe('Status');   // other fields still applied
+  });
+
+  it('the All board cannot be removed', () => {
+    const s = baseState();
+    s.boards[0] = { ...s.boards[0], id: 'b_all', name: 'All' };
+    const next = reducer({ ...s, activeBoardId: 'b_all' }, { type: 'removeBoard', id: 'b_all' });
+    expect(next.boards).toHaveLength(1);
+    expect(next.boards[0].id).toBe('b_all');
+  });
 });

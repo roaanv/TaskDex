@@ -7,6 +7,7 @@
 // still falls back to generation, so the reducer also runs standalone (in tests).
 
 import { detectType } from './detect';
+import { ALL_BOARD_ID, BOARD_PROP } from './board';
 import type {
   Board,
   Card,
@@ -113,16 +114,39 @@ export function reducer(state: State, action: Action): State {
       return { ...state, boards: [...state.boards, b], activeBoardId: b.id };
     }
     case 'removeBoard': {
+      if (a.id === ALL_BOARD_ID) return state; // the All board is protected
       const boards = state.boards.filter((b) => b.id !== a.id);
       let activeBoardId = state.activeBoardId;
       if (activeBoardId === a.id) activeBoardId = boards[0] ? boards[0].id : null;
       return { ...state, boards, activeBoardId };
     }
-    case 'updateBoard':
+    case 'updateBoard': {
+      const target = state.boards.find((b) => b.id === a.id);
+      // The All board's name is fixed — drop any attempt to rename it.
+      let patch = a.patch;
+      if (a.id === ALL_BOARD_ID && 'name' in patch) {
+        patch = { ...patch };
+        delete patch.name;
+      }
+      // A board's name IS its cards' `Board` value: renaming the board renames
+      // that value across every card it owns.
+      let cards = state.cards;
+      const newName = patch.name;
+      if (target && newName && newName !== target.name) {
+        cards = { ...state.cards };
+        Object.values(cards).forEach((c) => {
+          const p = c.props[BOARD_PROP];
+          if (p && String(p.value) === target.name) {
+            cards[c.id] = { ...c, props: { ...c.props, [BOARD_PROP]: { ...p, value: newName } } };
+          }
+        });
+      }
       return {
         ...state,
-        boards: state.boards.map((b) => (b.id === a.id ? { ...b, ...a.patch } : b)),
+        cards,
+        boards: state.boards.map((b) => (b.id === a.id ? { ...b, ...patch } : b)),
       };
+    }
     case 'reorderBoards': {
       // a.order = board ids in the new order. Rebuild the array in that order,
       // dropping unknown ids and appending any boards the order omitted (defensive).
