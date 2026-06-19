@@ -6,7 +6,7 @@
 import { useStore } from '../store/StoreContext';
 import { useTheme } from '../theme/ThemeContext';
 import { FONT_UI } from '../theme/tokens';
-import { evalFilter } from '../model';
+import { cardVisibleOnBoard } from '../model';
 import type { Board } from '../model';
 import { Sidebar } from './Sidebar';
 import { Board as BoardView } from './Board';
@@ -74,7 +74,7 @@ export function Shell() {
   const t = useTheme();
   const { width, collapsed, resizing, toggleCollapsed, startResize } = useSidebarLayout();
   const countFor = (b: Board) =>
-    Object.values(state.cards).filter((c) => evalFilter(c, b.filter)).length;
+    Object.values(state.cards).filter((c) => cardVisibleOnBoard(c, b)).length;
 
   if (!ready) {
     return (

@@ -2,7 +2,7 @@
 // and select-value autocomplete plus the filter property pickers. Ported from store.jsx.
 
 import type { Card, Registry, Board } from './types';
-import { evalFilter } from './filter';
+import { cardVisibleOnBoard } from './board';
 
 /** Build `{ [name]: { name, type, values: { [value]: count } } }` from all cards. */
 export function buildRegistry(cards: Record<string, Card>): Registry {
@@ -24,7 +24,7 @@ export function buildBoardRegistry(
 ): Registry {
   const subset: Record<string, Card> = {};
   Object.values(cards).forEach((c) => {
-    if (evalFilter(c, board ? board.filter : null)) subset[c.id] = c;
+    if (cardVisibleOnBoard(c, board)) subset[c.id] = c;
   });
   return buildRegistry(subset);
 }

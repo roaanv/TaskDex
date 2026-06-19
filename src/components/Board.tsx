@@ -11,7 +11,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, typ
 import { useStore } from '../store/StoreContext';
 import { useTheme } from '../theme/ThemeContext';
 import { FONT_MONO, FONT_UI, tint, type Theme } from '../theme/tokens';
-import { colorFor, evalFilter, PALETTE, presentValues, reconcileColumns } from '../model';
+import { cardVisibleOnBoard, colorFor, newCardProps, PALETTE, presentValues, reconcileColumns } from '../model';
 import type { Board as BoardModel, Registry } from '../model';
 import { IndexCard, TypeGlyph } from './IndexCard';
 import { FilterPanel } from './FilterPanel';
@@ -562,7 +562,7 @@ export function Board() {
 
   const allCards = useMemo(() => Object.values(state.cards), [state.cards]);
   const filtered = useMemo(
-    () => allCards.filter((c) => evalFilter(c, board ? board.filter : null)),
+    () => allCards.filter((c) => cardVisibleOnBoard(c, board)),
     [allCards, board],
   );
 
@@ -688,19 +688,7 @@ export function Board() {
   };
 
   const addCardToColumn = (colValue: string | null) => {
-    const props: Record<string, { type: import('../model').PropType; value: string }> = {};
-    if (grouped && colValue != null) {
-      const ex = registry[groupBy];
-      props[groupBy] = { type: ex ? ex.type : 'select', value: String(colValue) };
-    }
-    (board.filter && board.filter.rules ? board.filter.rules : []).forEach((r) => {
-      if (r.op === 'is' && r.value && !props[r.prop]) {
-        props[r.prop] = {
-          type: (registry[r.prop] && registry[r.prop].type) || 'text',
-          value: String(r.value),
-        };
-      }
-    });
+    const props = newCardProps(board, registry, colValue);
     dispatch({ type: 'addCard', body: 'New task\n', props });
   };
 

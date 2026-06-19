@@ -14,13 +14,13 @@ const board = (rules: Board['filter']['rules']): Board => ({
 describe('buildBoardRegistry', () => {
   it('includes only props on cards passing the board filter', () => {
     const cards = {
-      a: card('a', { status: { type: 'text', value: 'open' }, owner: { type: 'text', value: 'me' } }),
-      b: card('b', { status: { type: 'text', value: 'done' }, due: { type: 'date', value: '1/1/2026' } }),
+      a: card('a', { Board: { type: 'select', value: 'B' }, status: { type: 'text', value: 'open' }, owner: { type: 'text', value: 'me' } }),
+      b: card('b', { Board: { type: 'select', value: 'B' }, status: { type: 'text', value: 'done' }, due: { type: 'date', value: '1/1/2026' } }),
     };
     const reg = buildBoardRegistry(cards, board([
       { id: 'r', prop: 'status', op: 'is', value: 'open' },
     ]));
-    expect(Object.keys(reg).sort()).toEqual(['owner', 'status']);
+    expect(Object.keys(reg).sort()).toEqual(['Board', 'owner', 'status']);
     expect(reg.due).toBeUndefined();
   });
 
