@@ -466,7 +466,7 @@ function ColumnHead({
 }
 
 /* ---- vertical insertion indicator shown between columns while dragging ---- */
-function ColInsertBar({ t }: { t: Theme }) {
+function ColInsertBar({ t, color }: { t: Theme; color: string }) {
   return (
     <div
       aria-hidden
@@ -475,9 +475,9 @@ function ColInsertBar({ t }: { t: Theme }) {
         alignSelf: 'stretch',
         minHeight: 120,
         flex: 'none',
-        background: t.primary,
+        background: color,
         borderRadius: 2,
-        boxShadow: t.glow ? `0 0 8px ${t.primary}` : 'none',
+        boxShadow: t.glow ? `0 0 8px ${color}` : 'none',
       }}
     />
   );
@@ -604,6 +604,9 @@ export function Board() {
   const columns: ColView[] = grouped ? viewColumns(board, groupBy, presentForGroup) : [];
   const visibleColumns = columns.filter((c) => !c.hidden);
   const hiddenCols = columns.filter((c) => c.hidden);
+  // The reorder insertion bar takes the dragged column's own color so the drop
+  // target reads as "this column lands here" (falls back to the theme accent).
+  const draggingColColor = columns.find((c) => c.value === draggingCol)?.color ?? t.primary;
 
   const cardsFor = (value: string) =>
     filtered.filter((c) => c.props[groupBy] && String(c.props[groupBy].value) === String(value)).sort(sortByOrd);
@@ -798,7 +801,7 @@ export function Board() {
                 const showBarBefore = !!colDropTarget && colDropTarget.before === col.value && draggingCol !== col.value;
                 return (
                   <Fragment key={col.value}>
-                    {showBarBefore && <ColInsertBar t={t} />}
+                    {showBarBefore && <ColInsertBar t={t} color={draggingColColor} />}
                     <div
                       style={{
                         width: 286,
@@ -872,7 +875,7 @@ export function Board() {
                   </Fragment>
                 );
               })}
-              {colDropTarget && colDropTarget.before === null && draggedColRef.current && <ColInsertBar t={t} />}
+              {colDropTarget && colDropTarget.before === null && draggedColRef.current && <ColInsertBar t={t} color={draggingColColor} />}
               <AddColumn board={board} />
             </div>
           ) : (

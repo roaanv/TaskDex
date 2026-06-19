@@ -83,6 +83,11 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
 
 ### Fixed
 
+- **Column-reorder drop indicator now uses the dragged column's color** instead of the purple
+  theme accent. The vertical insertion bar shown while dragging a column to reorder it
+  (`ColInsertBar`) takes the color of the column being dragged, matching the card-drop indicator
+  which already uses its column's color (falls back to the theme accent if the color can't be
+  resolved).
 - Drag-and-drop drop target now works in the packaged app: set `dragDropEnabled: false` on the
   window so Tauri's native OS drag-drop handler stops intercepting the webview's in-page HTML5
   `drop` events. Guarded by a config test.
