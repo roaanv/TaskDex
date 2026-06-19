@@ -2,7 +2,7 @@
 // identity/derived fields create-actions need (so the reducer and the persisted
 // command agree); `persist` maps each dispatched action to a transactional command.
 
-import { colorFor, detectType, uid } from '../model';
+import { ALL_BOARD_ID, BOARD_PROP, colorFor, detectType, uid } from '../model';
 import type { Action, Card, State } from '../model';
 import { api, hasTauri } from '../api';
 
@@ -44,11 +44,19 @@ export async function persist(action: Action, prev: State): Promise<void> {
     case 'addBoard':
       return api.addBoard(action.id as string, action.name ?? 'New board', action.color as string);
     case 'removeBoard':
+      if (action.id === ALL_BOARD_ID) return; // protected; backend also guards
       return api.removeBoard(action.id);
     case 'reorderBoards':
       return api.reorderBoards(action.order);
-    case 'updateBoard':
-      return api.updateBoard(action.id, action.patch);
+    case 'updateBoard': {
+      await api.updateBoard(action.id, action.patch);
+      const prevBoard = prev.boards.find((b) => b.id === action.id);
+      const newName = action.patch.name;
+      if (prevBoard && typeof newName === 'string' && newName !== prevBoard.name && action.id !== ALL_BOARD_ID) {
+        await api.renameColumn(BOARD_PROP, prevBoard.name, newName);
+      }
+      return;
+    }
     case 'addCard': {
       const card: Card = {
         id: action.id as string,

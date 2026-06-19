@@ -114,4 +114,22 @@ describe('persist', () => {
     await persist({ type: 'removeColumn', boardId: 'b1', property: 'Status', value: 'Done' }, state());
     expect(calls.removeColumn[0]).toEqual(['b1', 'Status', 'Done']);
   });
+
+  it('renaming a board also renames the Board value across cards', async () => {
+    await persist({ type: 'updateBoard', id: 'b1', patch: { name: 'New' } }, state());
+    expect(calls.updateBoard[0]).toEqual(['b1', { name: 'New' }]);
+    expect(calls.renameColumn[0]).toEqual(['Board', 'B', 'New']); // prev name 'B' -> 'New'
+  });
+
+  it('does not rename the All board or propagate its name', async () => {
+    const s = state();
+    s.boards = [{ ...s.boards[0], id: 'b_all', name: 'All' }];
+    await persist({ type: 'updateBoard', id: 'b_all', patch: { name: 'Nope' } }, s);
+    expect(calls.renameColumn).toHaveLength(0);
+  });
+
+  it('does not persist deletion of the All board', async () => {
+    await persist({ type: 'removeBoard', id: 'b_all' }, state());
+    expect(calls.removeBoard).toHaveLength(0);
+  });
 });
