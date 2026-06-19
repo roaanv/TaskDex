@@ -665,11 +665,17 @@ export function IndexCard({
   boardId,
   dragProps = {},
   accent,
+  autoEditTitle = false,
+  onAutoEditConsumed,
 }: {
   cardId: string;
   boardId: string;
   dragProps?: DragProps;
   accent: string;
+  /** When the board signals a freshly-created card, open straight in title edit. */
+  autoEditTitle?: boolean;
+  /** Called once the auto-edit has been consumed, so the board can clear its flag. */
+  onAutoEditConsumed?: () => void;
 }) {
   const { state, dispatch, registry } = useStore();
   const t = useTheme();
@@ -714,6 +720,25 @@ export function IndexCard({
   const notesToken = editing && editTarget === 'notes' ? activeHashToken(draft, caret) : null;
   const busy = useRef(false);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True for the tick after the title input mounts via auto-edit, so its onFocus
+  // selects the placeholder ("New task") and the first keystroke replaces it.
+  const selectTitleOnFocus = useRef(false);
+  // Fires the auto-edit at most once per freshly-created card (per mount).
+  const autoEditDone = useRef(false);
+
+  // A newly created card asks (via the board) to open straight in title-edit mode
+  // so the user can name it immediately — no double-click needed. We set the edit
+  // state directly here (rather than via beginEdit, defined below the card guard)
+  // and tell the board to clear its flag so this never re-triggers.
+  useEffect(() => {
+    if (!autoEditTitle || autoEditDone.current || !card || back) return;
+    autoEditDone.current = true;
+    selectTitleOnFocus.current = true;
+    setEditTarget('title');
+    setDraft(titleOf(card.body));
+    setEditing(true);
+    onAutoEditConsumed?.();
+  }, [autoEditTitle, card, back, onAutoEditConsumed]);
 
   if (!card) return null;
   const title = titleOf(card.body);
@@ -833,6 +858,13 @@ export function IndexCard({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onClick={(e) => e.stopPropagation()}
+          onFocus={(e) => {
+            // For a just-created card, preselect the placeholder so typing replaces it.
+            if (selectTitleOnFocus.current) {
+              e.currentTarget.select();
+              selectTitleOnFocus.current = false;
+            }
+          }}
           onBlur={saveEdit}
           onKeyDown={(e) => {
             if (e.key === 'Enter') saveEdit();

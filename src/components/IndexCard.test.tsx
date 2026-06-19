@@ -37,6 +37,28 @@ async function openNotesEditor(): Promise<HTMLTextAreaElement> {
   return textarea;
 }
 
+describe('IndexCard — new card opens in title edit mode', () => {
+  it('focuses the title input (with the placeholder selected) when a card is added', async () => {
+    render(<App />);
+
+    // The top-bar "+ Card" button (distinct from the column "+ Add card" buttons).
+    const addBtn = screen.getByRole('button', { name: /^\+\s*Card$/ });
+    fireEvent.click(addBtn);
+
+    // The new card's title input is mounted, focused, and its placeholder selected.
+    const input = (await screen.findByDisplayValue('New task')) as HTMLInputElement;
+    expect(input.tagName).toBe('INPUT');
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe('New task'.length);
+
+    // Typing replaces the placeholder and saving shows the new title.
+    fireEvent.change(input, { target: { value: 'Plan the offsite' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(await screen.findByText('Plan the offsite')).toBeTruthy();
+  });
+});
+
 describe('IndexCard notes editing — Cmd+Enter to finish', () => {
   it('saves and exits the editor on Cmd+Enter', async () => {
     render(<App />);

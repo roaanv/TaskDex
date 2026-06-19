@@ -11,7 +11,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, typ
 import { useStore } from '../store/StoreContext';
 import { useTheme } from '../theme/ThemeContext';
 import { FONT_MONO, FONT_UI, tint, type Theme } from '../theme/tokens';
-import { cardVisibleOnBoard, colorFor, newCardProps, PALETTE, presentValues, reconcileColumns } from '../model';
+import { cardVisibleOnBoard, colorFor, newCardProps, PALETTE, presentValues, reconcileColumns, uid } from '../model';
 import type { Board as BoardModel, Registry } from '../model';
 import { IndexCard, TypeGlyph } from './IndexCard';
 import { FilterPanel } from './FilterPanel';
@@ -559,6 +559,9 @@ export function Board() {
   const draggedColRef = useRef<string | null>(null);
   const [draggingCol, setDraggingCol] = useState<string | null>(null);
   const [colDropTarget, setColDropTarget] = useState<{ before: string | null } | null>(null);
+  // The card just created here, to open in title-edit mode on its first mount.
+  // Cleared by the card once it consumes the signal (see renderSlot / IndexCard).
+  const [focusCardId, setFocusCardId] = useState<string | null>(null);
 
   const allCards = useMemo(() => Object.values(state.cards), [state.cards]);
   const filtered = useMemo(
@@ -688,8 +691,12 @@ export function Board() {
   };
 
   const addCardToColumn = (colValue: string | null) => {
+    // Generate the id here (the action accepts a pre-generated one) so we know
+    // which freshly-mounted card to drop into title-edit mode.
+    const id = uid('c_');
     const props = newCardProps(board, registry, colValue);
-    dispatch({ type: 'addCard', body: 'New task\n', props });
+    dispatch({ type: 'addCard', id, body: 'New task\n', props });
+    setFocusCardId(id);
   };
 
   // Stable, reconciled slot (function call, not an inline component) — see file header.
@@ -728,7 +735,14 @@ export function Board() {
         />
       )}
       <div style={{ opacity: draggingId === c.id ? 0.4 : 1, marginBottom: 13 }}>
-        <IndexCard cardId={c.id} boardId={board.id} dragProps={dragProps(c.id)} accent={accent} />
+        <IndexCard
+          cardId={c.id}
+          boardId={board.id}
+          dragProps={dragProps(c.id)}
+          accent={accent}
+          autoEditTitle={c.id === focusCardId}
+          onAutoEditConsumed={() => setFocusCardId(null)}
+        />
       </div>
     </div>
   );

@@ -27,6 +27,12 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
   columns" commit) that left conflict markers in the test module and prevented the Rust backend from
   compiling. Resolved by keeping both tests (`reorder_boards_persists_new_order` and
   `reorder_columns_assigns_sequential_order_from_the_list`).
+- **New cards open in title-edit mode.** Adding a card (top-bar **+ Card**, a column's **+ Add
+  card**, or a column header's add button) now drops straight into editing that card's title with
+  the field focused and the placeholder (`New task`) selected, so the first keystroke replaces it —
+  no double-click needed. The board pre-generates the card id (already supported by `addCard`) so it
+  can flag exactly the freshly-mounted `IndexCard`, which consumes the flag on mount and clears it.
+  Covered by `IndexCard.test.tsx`.
 - **Cmd/Ctrl+Enter finishes note editing.** While editing a card's notes on the front face,
   pressing `Cmd+Enter` (or `Ctrl+Enter` on non-mac keyboards) now saves the changes and exits the
   editor — the same save path as blur/`Escape`, so `#name: value` properties are still captured.
