@@ -60,7 +60,7 @@ function BoardRow({
     <div
       onClick={() => dispatch({ type: 'setActive', id: board.id })}
       className="td-board-row"
-      draggable={!editing}
+      draggable={!editing && !isAll}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}

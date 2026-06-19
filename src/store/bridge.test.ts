@@ -72,6 +72,20 @@ describe('augment', () => {
       expect(a.color).toMatch(/^#/);
     }
   });
+
+  it('pins the All board first when reordering boards', () => {
+    const a = augment({ type: 'reorderBoards', order: ['b1', 'b_all', 'b2'] }, state());
+    if (a.type === 'reorderBoards') {
+      expect(a.order).toEqual(['b_all', 'b1', 'b2']);
+    }
+  });
+
+  it('leaves a reorder without the All board unchanged', () => {
+    const a = augment({ type: 'reorderBoards', order: ['b2', 'b1'] }, state());
+    if (a.type === 'reorderBoards') {
+      expect(a.order).toEqual(['b2', 'b1']);
+    }
+  });
 });
 
 describe('persist', () => {

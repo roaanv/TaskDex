@@ -30,6 +30,14 @@ export function augment(action: Action, state: State): Action {
         order: action.order ?? list.length, // append position for the backend
       };
     }
+    case 'reorderBoards': {
+      // Keep the All board pinned first regardless of where it was dropped, so
+      // both the in-memory order and the persisted `ord` (assigned by index)
+      // put it first. No-op when this reorder doesn't include the All board.
+      if (!action.order.includes(ALL_BOARD_ID)) return action;
+      const rest = action.order.filter((id) => id !== ALL_BOARD_ID);
+      return { ...action, order: [ALL_BOARD_ID, ...rest] };
+    }
     default:
       return action;
   }
