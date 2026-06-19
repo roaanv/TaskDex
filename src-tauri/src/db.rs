@@ -107,62 +107,62 @@ fn seed(conn: &mut Connection) -> rusqlite::Result<()> {
     let cards: [SeedCard; 12] = [
         SeedCard {
             body: "Redesign onboarding flow\nTalk to 5 users about the first run, then sketch 3 entry points and prototype the warmest one.",
-            props: &[("Status", "select", "In progress"), ("Priority", "select", "High"), ("Due", "date", "Jun 22"), ("Estimate", "int", "8"), ("Area", "select", "Design")],
+            props: &[("Status", "select", "In progress"), ("Priority", "select", "High"), ("Due", "date", "Jun 22"), ("Estimate", "int", "8"), ("Area", "select", "Design"), ("Board", "select", "Product Sprint")],
             promos: &[("Priority", true, true), ("Due", true, false)],
         },
         SeedCard {
             body: "Ship dark mode\nAudit every surface for contrast and wire the theme toggle into settings.",
-            props: &[("Status", "select", "In progress"), ("Priority", "select", "Medium"), ("Effort", "decimal", "3.5"), ("Area", "select", "Eng")],
+            props: &[("Status", "select", "In progress"), ("Priority", "select", "Medium"), ("Effort", "decimal", "3.5"), ("Area", "select", "Eng"), ("Board", "select", "By Priority")],
             promos: &[("Priority", true, false)],
         },
         SeedCard {
             body: "Fix flaky CI pipeline\nThe integration suite times out ~1 in 5 runs. Bisect the slow tests.",
-            props: &[("Status", "select", "Blocked"), ("Priority", "select", "High"), ("Area", "select", "Eng"), ("Done", "bool", "no")],
+            props: &[("Status", "select", "Blocked"), ("Priority", "select", "High"), ("Area", "select", "Eng"), ("Done", "bool", "no"), ("Board", "select", "By Priority")],
             promos: &[("Priority", false, true)],
         },
         SeedCard {
             body: "Write Q3 OKRs\nDraft 3 objectives with measurable key results and circulate for feedback.",
-            props: &[("Status", "select", "Backlog"), ("Priority", "select", "Medium"), ("Due", "date", "Jul 1"), ("Area", "select", "Research")],
+            props: &[("Status", "select", "Backlog"), ("Priority", "select", "Medium"), ("Due", "date", "Jul 1"), ("Area", "select", "Research"), ("Board", "select", "Product Sprint")],
             promos: &[],
         },
         SeedCard {
             body: "Interview 5 power users\nRecruit from the beta cohort. Focus on workflows we don't support yet.",
-            props: &[("Status", "select", "Backlog"), ("Priority", "select", "Low"), ("Area", "select", "Research"), ("Estimate", "int", "5")],
+            props: &[("Status", "select", "Backlog"), ("Priority", "select", "Low"), ("Area", "select", "Research"), ("Estimate", "int", "5"), ("Board", "select", "Product Sprint")],
             promos: &[],
         },
         SeedCard {
             body: "Migrate to new icon set\nReplace the 40 most-used glyphs and delete the old sprite sheet.",
-            props: &[("Status", "select", "Done"), ("Priority", "select", "Low"), ("Area", "select", "Design"), ("Done", "bool", "yes")],
+            props: &[("Status", "select", "Done"), ("Priority", "select", "Low"), ("Area", "select", "Design"), ("Done", "bool", "yes"), ("Board", "select", "Product Sprint")],
             promos: &[("Done", false, true)],
         },
         SeedCard {
             body: "Launch referral program\nDefine the reward tiers and the share surface. Coordinate with growth.",
-            props: &[("Status", "select", "Backlog"), ("Priority", "select", "High"), ("Due", "date", "Aug 15"), ("Area", "select", "Eng")],
+            props: &[("Status", "select", "Backlog"), ("Priority", "select", "High"), ("Due", "date", "Aug 15"), ("Area", "select", "Eng"), ("Board", "select", "By Priority")],
             promos: &[("Priority", true, false), ("Due", true, true)],
         },
         SeedCard {
             body: "Refactor settings module\nIt's grown into a 2k-line file. Split by domain and add tests.",
-            props: &[("Status", "select", "In progress"), ("Priority", "select", "Medium"), ("Effort", "decimal", "5.0"), ("Area", "select", "Eng")],
+            props: &[("Status", "select", "In progress"), ("Priority", "select", "Medium"), ("Effort", "decimal", "5.0"), ("Area", "select", "Eng"), ("Board", "select", "By Priority")],
             promos: &[],
         },
         SeedCard {
             body: "Thinking in Systems — Donella Meadows\nFoundational mental models for feedback loops.",
-            props: &[("Shelf", "select", "Reading"), ("Rating", "int", "5"), ("Link", "url", "https://example.com/systems")],
+            props: &[("Shelf", "select", "Reading"), ("Rating", "int", "5"), ("Link", "url", "https://example.com/systems"), ("Board", "select", "Reading List")],
             promos: &[("Rating", true, true)],
         },
         SeedCard {
             body: "The Design of Everyday Things — Norman\nThe classic on affordances and signifiers.",
-            props: &[("Shelf", "select", "Finished"), ("Rating", "int", "4")],
+            props: &[("Shelf", "select", "Finished"), ("Rating", "int", "4"), ("Board", "select", "Reading List")],
             promos: &[("Rating", false, true)],
         },
         SeedCard {
             body: "Shape Up — Basecamp\nAppetite-driven planning and the hill chart.",
-            props: &[("Shelf", "select", "To read"), ("Link", "url", "https://basecamp.com/shapeup")],
+            props: &[("Shelf", "select", "To read"), ("Link", "url", "https://basecamp.com/shapeup"), ("Board", "select", "Reading List")],
             promos: &[],
         },
         SeedCard {
             body: "A Pattern Language — Alexander\nWhere a lot of modern design vocabulary comes from.",
-            props: &[("Shelf", "select", "Reading"), ("Rating", "int", "5")],
+            props: &[("Shelf", "select", "Reading"), ("Rating", "int", "5"), ("Board", "select", "Reading List")],
             promos: &[("Rating", true, false)],
         },
     ];
@@ -502,7 +502,7 @@ mod tests {
         let first = snap.cards.values().next().unwrap();
         assert_eq!(first.body.lines().next(), Some("Redesign onboarding flow"));
         let names: Vec<&str> = first.props.keys().map(String::as_str).collect();
-        assert_eq!(names, vec!["Status", "Priority", "Due", "Estimate", "Area"]);
+        assert_eq!(names, vec!["Status", "Priority", "Due", "Estimate", "Area", "Board"]);
         let promo = first.promotions.get("Priority").unwrap();
         assert!(promo.front && promo.title);
     }
