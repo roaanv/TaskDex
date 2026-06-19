@@ -126,6 +126,7 @@ describe('persist', () => {
     s.boards = [{ ...s.boards[0], id: 'b_all', name: 'All' }];
     await persist({ type: 'updateBoard', id: 'b_all', patch: { name: 'Nope' } }, s);
     expect(calls.renameColumn).toHaveLength(0);
+    expect(calls.updateBoard[0]).toEqual(['b_all', { name: 'Nope' }]);
   });
 
   it('does not persist deletion of the All board', async () => {
