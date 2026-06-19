@@ -9,6 +9,12 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
 
 ### Added
 
+- **Card–board association:** every card now carries a `Board` property set to the
+  board it was created on. Each board shows only its own cards (ownership ANDed
+  with the user filter). Renaming a board moves its cards with it.
+- **All board:** a protected board (cannot be deleted or renamed) that shows every
+  card regardless of `Board`, so orphaned/legacy cards can be found and reassigned.
+  Cards created on the All board are left unassigned. No database migration required.
 - **Enable / disable a filter without clearing its rules.** A single On/Off toggle in the filter
   panel header (shown once a board has at least one rule) turns the whole filter off — the rules are
   kept but ignored, so every card shows — and back on. When off, the rule list dims to signal it is
