@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/StoreContext';
 import { useTheme, ThemeSwitch } from '../theme/ThemeContext';
 import { FONT_MONO, FONT_UI, tint } from '../theme/tokens';
-import { PALETTE } from '../model';
+import { ALL_BOARD_ID, PALETTE } from '../model';
 import type { Board } from '../model';
 
 function BoardRow({
@@ -32,6 +32,7 @@ function BoardRow({
 }) {
   const { dispatch } = useStore();
   const t = useTheme();
+  const isAll = board.id === ALL_BOARD_ID;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(board.name);
   const [palOpen, setPalOpen] = useState(false);
@@ -175,7 +176,7 @@ function BoardRow({
         <span
           onDoubleClick={(e) => {
             e.stopPropagation();
-            setEditing(true);
+            if (!isAll) setEditing(true);
           }}
           style={{
             flex: 1,
@@ -194,6 +195,7 @@ function BoardRow({
         </span>
       )}
       <span style={{ fontSize: 11, color: t.faint, fontFamily: FONT_MONO, flex: 'none' }}>{count}</span>
+      {!isAll && (
       <button
         className="td-board-del"
         onClick={remove}
@@ -222,6 +224,7 @@ function BoardRow({
           />
         </svg>
       </button>
+      )}
     </div>
   );
 }
