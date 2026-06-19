@@ -16,12 +16,14 @@ describe('buildBoardRegistry', () => {
     const cards = {
       a: card('a', { Board: { type: 'select', value: 'B' }, status: { type: 'text', value: 'open' }, owner: { type: 'text', value: 'me' } }),
       b: card('b', { Board: { type: 'select', value: 'B' }, status: { type: 'text', value: 'done' }, due: { type: 'date', value: '1/1/2026' } }),
+      c: card('c', { Board: { type: 'select', value: 'Other' }, status: { type: 'text', value: 'open' }, foreign: { type: 'text', value: 'x' } }),
     };
     const reg = buildBoardRegistry(cards, board([
       { id: 'r', prop: 'status', op: 'is', value: 'open' },
     ]));
     expect(Object.keys(reg).sort()).toEqual(['Board', 'owner', 'status']);
     expect(reg.due).toBeUndefined();
+    expect(reg.foreign).toBeUndefined(); // card c is owned by another board -> excluded
   });
 
   it('with no filter, includes every card (like buildRegistry)', () => {
