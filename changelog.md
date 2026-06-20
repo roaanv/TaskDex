@@ -33,6 +33,22 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
   no double-click needed. The board pre-generates the card id (already supported by `addCard`) so it
   can flag exactly the freshly-mounted `IndexCard`, which consumes the flag on mount and clears it.
   Covered by `IndexCard.test.tsx`.
+- **Card selection with keyboard navigation.** Click a card to select it (a focus ring haloes the
+  selected card); click empty board space or press `Esc` to deselect. Once a card is selected,
+  shortcuts move around without the mouse: `Enter` opens the notes editor; on grouped (kanban)
+  boards `Up`/`Down` move within the column and `Left`/`Right` move to the nearest non-empty column
+  (landing on the same row, or that column's last card if it is shorter — empty columns are
+  skipped); on ungrouped boards `Up`/`Down` step through the list and `Left`/`Right` do nothing.
+  The selected card scrolls into view as the selection moves, and shortcuts never fire while a text
+  field is focused. Grid/list traversal lives in a pure, unit-tested helper (`src/cardNav.ts`);
+  wiring is covered by `Board.test.tsx`.
+- **Double-clicking a title selects its text.** Double-clicking a card title to edit it now opens
+  the field with the existing title fully selected, so the first keystroke replaces it (matching the
+  new-card behaviour).
+- **Tab moves from title to notes editing.** While editing a card's title, pressing `Tab` commits
+  the title and immediately enters edit mode on that card's notes with the field focused and all
+  existing note text selected (expanding the card first if it was collapsed), so a card can be
+  filled in — or the notes replaced — without reaching for the mouse.
 - **Cmd/Ctrl+Enter finishes note editing.** While editing a card's notes on the front face,
   pressing `Cmd+Enter` (or `Ctrl+Enter` on non-mac keyboards) now saves the changes and exits the
   editor — the same save path as blur/`Escape`, so `#name: value` properties are still captured.
@@ -89,6 +105,13 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
 
 ### Fixed
 
+- **Card cursor now reflects the drag affordance, not editing.** Hovering a card's title or notes
+  previously showed a text I-beam (`cursor: text`), implying a single click would edit — but a
+  single click-drag actually moves the card and editing needs a double-click. The title and notes
+  now inherit the card's `grab` cursor (changed to `cursor: inherit`), so the whole card honestly
+  signals "draggable," and the card shows `grabbing` while being picked up (`.td-card:active`).
+  The I-beam now appears only inside the actual edit field. Editing is still double-click
+  (communicated by the existing tooltips and hover edit-pencils).
 - **Column-reorder drop indicator now uses the dragged column's color** instead of the purple
   theme accent. The vertical insertion bar shown while dragging a column to reorder it
   (`ColInsertBar`) takes the color of the column being dragged, matching the card-drop indicator

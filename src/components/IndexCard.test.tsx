@@ -4,7 +4,7 @@
 // Tauri backend is absent under jsdom) and drives one seeded card's notes editor.
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from '../App';
 
 const SEED_NOTE =
@@ -56,6 +56,65 @@ describe('IndexCard — new card opens in title edit mode', () => {
     fireEvent.change(input, { target: { value: 'Plan the offsite' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(await screen.findByText('Plan the offsite')).toBeTruthy();
+  });
+});
+
+describe('IndexCard — Tab moves from title to notes editing', () => {
+  it('commits the title and opens the focused notes editor on Tab', async () => {
+    render(<App />);
+
+    const addBtn = screen.getByRole('button', { name: /^\+\s*Card$/ });
+    fireEvent.click(addBtn);
+
+    const input = (await screen.findByDisplayValue('New task')) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Plan the offsite' } });
+    fireEvent.keyDown(input, { key: 'Tab' });
+
+    // Title was committed and is shown as static text (the input is gone).
+    expect(await screen.findByText('Plan the offsite')).toBeTruthy();
+
+    // The notes editor is now open and holds focus.
+    await waitFor(() => {
+      const active = document.activeElement as HTMLElement | null;
+      expect(active?.tagName).toBe('TEXTAREA');
+    });
+  });
+
+  it('selects the existing title when double-clicking to edit it', async () => {
+    render(<App />);
+
+    const titleSpan = await screen.findByText('Redesign onboarding flow');
+    fireEvent.doubleClick(titleSpan);
+
+    const titleInput = (await screen.findByDisplayValue(
+      'Redesign onboarding flow',
+    )) as HTMLInputElement;
+    await waitFor(() => {
+      expect(document.activeElement).toBe(titleInput);
+      expect(titleInput.selectionStart).toBe(0);
+      expect(titleInput.selectionEnd).toBe('Redesign onboarding flow'.length);
+    });
+  });
+
+  it('selects all existing note text when tabbing into the notes editor', async () => {
+    render(<App />);
+
+    // Edit the seeded card whose notes are SEED_NOTE.
+    const titleSpan = await screen.findByText('Redesign onboarding flow');
+    fireEvent.doubleClick(titleSpan);
+    const titleInput = (await screen.findByDisplayValue(
+      'Redesign onboarding flow',
+    )) as HTMLInputElement;
+
+    fireEvent.keyDown(titleInput, { key: 'Tab' });
+
+    // The notes editor opens with the full note text selected.
+    const textarea = (await screen.findByDisplayValue(SEED_NOTE)) as HTMLTextAreaElement;
+    await waitFor(() => {
+      expect(document.activeElement).toBe(textarea);
+      expect(textarea.selectionStart).toBe(0);
+      expect(textarea.selectionEnd).toBe(SEED_NOTE.length);
+    });
   });
 });
 

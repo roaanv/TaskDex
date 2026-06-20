@@ -667,6 +667,10 @@ export function IndexCard({
   accent,
   autoEditTitle = false,
   onAutoEditConsumed,
+  selected = false,
+  onSelect,
+  autoEditNotes = false,
+  onAutoEditNotesConsumed,
 }: {
   cardId: string;
   boardId: string;
@@ -676,6 +680,14 @@ export function IndexCard({
   autoEditTitle?: boolean;
   /** Called once the auto-edit has been consumed, so the board can clear its flag. */
   onAutoEditConsumed?: () => void;
+  /** Whether this card is the board's currently selected card (shows a focus ring). */
+  selected?: boolean;
+  /** Called when the card is clicked, so the board can mark it selected. */
+  onSelect?: () => void;
+  /** When the board signals (Enter on the selected card), open the notes editor. */
+  autoEditNotes?: boolean;
+  /** Called once the notes auto-edit has been consumed, so the board clears its flag. */
+  onAutoEditNotesConsumed?: () => void;
 }) {
   const { state, dispatch, registry } = useStore();
   const t = useTheme();
@@ -723,6 +735,9 @@ export function IndexCard({
   // True for the tick after the title input mounts via auto-edit, so its onFocus
   // selects the placeholder ("New task") and the first keystroke replaces it.
   const selectTitleOnFocus = useRef(false);
+  // True for the tick after the notes editor mounts via Tab-from-title, so its
+  // onFocus selects all existing note text (ready to be replaced or extended).
+  const selectNotesOnFocus = useRef(false);
   // Fires the auto-edit at most once per freshly-created card (per mount).
   const autoEditDone = useRef(false);
 
@@ -739,6 +754,21 @@ export function IndexCard({
     setEditing(true);
     onAutoEditConsumed?.();
   }, [autoEditTitle, card, back, onAutoEditConsumed]);
+
+  // The board asks (Enter on the selected card) to open the notes editor. Unlike
+  // the title auto-edit this can fire repeatedly over the card's lifetime, so we
+  // rely on the board clearing its flag (via the consumed callback) rather than a
+  // once-per-mount latch.
+  useEffect(() => {
+    if (!autoEditNotes || !card) return;
+    if (!back) {
+      if (collapsed) dispatch({ type: 'setCollapsed', boardId, cardId, value: false });
+      setEditTarget('notes');
+      setDraft(notesOf(card.body));
+      setEditing(true);
+    }
+    onAutoEditNotesConsumed?.();
+  }, [autoEditNotes, card, back, collapsed, dispatch, boardId, cardId, onAutoEditNotesConsumed]);
 
   if (!card) return null;
   const title = titleOf(card.body);
@@ -766,6 +796,8 @@ export function IndexCard({
   const beginEdit = (target: 'title' | 'notes') => {
     if (clickTimer.current) clearTimeout(clickTimer.current);
     if (back) return;
+    // Entering title edit preselects the existing title so it can be replaced.
+    if (target === 'title') selectTitleOnFocus.current = true;
     setEditTarget(target);
     setDraft(target === 'title' ? title : notes);
     setEditing(true);
@@ -859,7 +891,8 @@ export function IndexCard({
           onChange={(e) => setDraft(e.target.value)}
           onClick={(e) => e.stopPropagation()}
           onFocus={(e) => {
-            // For a just-created card, preselect the placeholder so typing replaces it.
+            // Preselect the title on entry (new-card placeholder or double-click
+            // edit) so the first keystroke replaces it.
             if (selectTitleOnFocus.current) {
               e.currentTarget.select();
               selectTitleOnFocus.current = false;
@@ -869,6 +902,15 @@ export function IndexCard({
           onKeyDown={(e) => {
             if (e.key === 'Enter') saveEdit();
             if (e.key === 'Escape') setEditing(false);
+            if (e.key === 'Tab' && !e.shiftKey) {
+              // Tab commits the title and jumps straight into editing the notes,
+              // with all existing note text selected.
+              e.preventDefault();
+              saveEdit();
+              if (collapsed) dispatch({ type: 'setCollapsed', boardId, cardId, value: false });
+              selectNotesOnFocus.current = true;
+              beginEdit('notes');
+            }
           }}
           style={{
             flex: 1,
@@ -897,7 +939,7 @@ export function IndexCard({
             letterSpacing: '-.01em',
             flex: 1,
             lineHeight: 1.25,
-            cursor: 'text',
+            cursor: 'inherit',
             color: t.text,
             textShadow: t.softInk(accent, 1),
             display: '-webkit-box',
@@ -945,6 +987,13 @@ export function IndexCard({
             autoFocus
             value={draft}
             onChange={(e) => onNotesChange(e.target.value, e.target.selectionStart)}
+            onFocus={(e) => {
+              // Arriving via Tab from the title: preselect all note text.
+              if (selectNotesOnFocus.current) {
+                e.currentTarget.select();
+                selectNotesOnFocus.current = false;
+              }
+            }}
             onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
             onClick={(e) => e.stopPropagation()}
             onBlur={saveEdit}
@@ -993,7 +1042,7 @@ export function IndexCard({
             color: notes.trim() ? t.textDim : t.faint,
             whiteSpace: 'pre-wrap',
             minHeight: 24,
-            cursor: 'text',
+            cursor: 'inherit',
           }}
         >
           {notes.trim() || 'Double-click to add notes… (use #name: value for properties)'}
@@ -1028,7 +1077,11 @@ export function IndexCard({
     overflow: 'hidden',
     background: `radial-gradient(120% 130% at 50% -20%, ${tint(accent, t.glow ? '1f' : '14')}, ${t.cardFill} 58%)`,
     border: `1.5px solid ${accent}`,
-    boxShadow: t.tubeFrame(accent),
+    // Selected card gets a haloed focus ring: a gap in the card fill then a solid
+    // accent ring outside the border, layered over the normal tube glow.
+    boxShadow: selected
+      ? `0 0 0 2px ${t.cardFill}, 0 0 0 4px ${accent}, ${t.tubeFrame(accent)}`
+      : t.tubeFrame(accent),
   };
 
   return (
@@ -1036,6 +1089,12 @@ export function IndexCard({
       {...dragProps}
       className="td-card"
       draggable={dragProps.draggable && !editing}
+      onClick={(e) => {
+        // Single click selects this card; stop the board surface from treating it
+        // as an empty-space click (which deselects).
+        e.stopPropagation();
+        onSelect?.();
+      }}
       onDoubleClick={() => beginEdit('notes')}
       style={{
         width: '100%',

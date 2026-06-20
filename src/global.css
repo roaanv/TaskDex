@@ -69,6 +69,11 @@ div:hover > .td-col-actions,
   background: rgba(157, 107, 255, 0.45) !important;
 }
 
+/* grabbing feedback while a card is being picked up for drag */
+.td-card:active {
+  cursor: grabbing;
+}
+
 /* edit pencils reveal on card hover */
 .td-editbtn {
   opacity: 0;

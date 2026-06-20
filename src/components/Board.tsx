@@ -15,6 +15,7 @@ import { cardVisibleOnBoard, colorFor, newCardProps, PALETTE, presentValues, rec
 import type { Board as BoardModel, Registry } from '../model';
 import { IndexCard, TypeGlyph } from './IndexCard';
 import { FilterPanel } from './FilterPanel';
+import { nextSelectedInGrid, nextSelectedInList, type ArrowDirection } from '../cardNav';
 
 interface ColView {
   value: string;
@@ -563,11 +564,86 @@ export function Board() {
   // Cleared by the card once it consumes the signal (see renderSlot / IndexCard).
   const [focusCardId, setFocusCardId] = useState<string | null>(null);
 
+  // Card selection + keyboard navigation. `selectedCardId` shows a focus ring and
+  // enables arrow/Enter shortcuts; `editNotesCardId` is the one-shot Enter signal
+  // that tells the selected card to open its notes editor.
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [editNotesCardId, setEditNotesCardId] = useState<string | null>(null);
+  // Refs mirror the latest selection + nav grid so the window key handler (bound
+  // once) always reads current values without re-subscribing every render.
+  const selectedRef = useRef<string | null>(null);
+  selectedRef.current = selectedCardId;
+  const navRef = useRef<{ grouped: boolean; columns: string[][]; list: string[] }>({
+    grouped: false,
+    columns: [],
+    list: [],
+  });
+
+  // Selection is per active-board view; clear it when the board changes.
+  useEffect(() => {
+    setSelectedCardId(null);
+    setEditNotesCardId(null);
+  }, [state.activeBoardId]);
+
+  // Keyboard navigation: bound once, reads selection + grid from refs. Bails when
+  // the user is typing in a field (or editing a card) so it never hijacks input.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const id = selectedRef.current;
+      if (!id) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+
+      if (e.key === 'Escape') {
+        setSelectedCardId(null);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setEditNotesCardId(id);
+        return;
+      }
+      const dir: ArrowDirection | undefined = (
+        {
+          ArrowUp: 'up',
+          ArrowDown: 'down',
+          ArrowLeft: 'left',
+          ArrowRight: 'right',
+        } as const
+      )[e.key];
+      if (!dir) return;
+      const nav = navRef.current;
+      const next = nav.grouped
+        ? nextSelectedInGrid(nav.columns, id, dir)
+        : nextSelectedInList(nav.list, id, dir);
+      if (next) {
+        e.preventDefault();
+        setSelectedCardId(next);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Keep the selected card visible as arrows move the selection.
+  useEffect(() => {
+    if (!selectedCardId) return;
+    const node = document.querySelector(`[data-card-id="${selectedCardId}"]`);
+    node?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedCardId]);
+
   const allCards = useMemo(() => Object.values(state.cards), [state.cards]);
   const filtered = useMemo(
     () => allCards.filter((c) => cardVisibleOnBoard(c, board)),
     [allCards, board],
   );
+
+  // Drop the selection if its card is no longer visible (deleted or filtered out).
+  useEffect(() => {
+    if (selectedCardId && !filtered.some((c) => c.id === selectedCardId)) {
+      setSelectedCardId(null);
+    }
+  }, [selectedCardId, filtered]);
 
   // All present values for the active group-by (across the whole card pool, so
   // the stored list mirrors the backend, which has no filter notion).
@@ -614,6 +690,14 @@ export function Board() {
   const cardsFor = (value: string) =>
     filtered.filter((c) => c.props[groupBy] && String(c.props[groupBy].value) === String(value)).sort(sortByOrd);
   const listCards = filtered.slice().sort(sortByOrd);
+
+  // Snapshot the current selection grid for the (once-bound) key handler: visible
+  // columns of ordered ids in grouped mode, or the flat list order otherwise.
+  navRef.current = {
+    grouped,
+    columns: grouped ? visibleColumns.map((col) => cardsFor(col.value).map((c) => c.id)) : [],
+    list: grouped ? [] : listCards.map((c) => c.id),
+  };
 
   const dragProps = (cardId: string) => ({
     draggable: true,
@@ -706,6 +790,7 @@ export function Board() {
   const renderSlot = (c: (typeof allCards)[number], colValue: string | null, accent: string) => (
     <div
       key={c.id}
+      data-card-id={c.id}
       onDragOver={(e) => {
         // During a column drag, do nothing and let the event bubble to the
         // column container which owns column drop positioning.
@@ -745,6 +830,10 @@ export function Board() {
           accent={accent}
           autoEditTitle={c.id === focusCardId}
           onAutoEditConsumed={() => setFocusCardId(null)}
+          selected={c.id === selectedCardId}
+          onSelect={() => setSelectedCardId(c.id)}
+          autoEditNotes={c.id === editNotesCardId}
+          onAutoEditNotesConsumed={() => setEditNotesCardId(null)}
         />
       </div>
     </div>
@@ -805,8 +894,12 @@ export function Board() {
           </div>
         )}
 
-        {/* board surface */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '18px 22px 28px' }}>
+        {/* board surface — a click that reaches here (not stopped by a card) is on
+            empty space, so it clears the selection. */}
+        <div
+          onClick={() => setSelectedCardId(null)}
+          style={{ flex: 1, overflow: 'auto', padding: '18px 22px 28px' }}
+        >
           {grouped ? (
             <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', minHeight: '100%' }}>
               {visibleColumns.map((col, i) => {
