@@ -35,7 +35,8 @@ Initial implementation: a Tauri 2 + Rust/SQLite + React/TypeScript recreation of
   Covered by `IndexCard.test.tsx`.
 - **Card selection with keyboard navigation.** Click a card to select it (a focus ring haloes the
   selected card); click empty board space or press `Esc` to deselect. Once a card is selected,
-  shortcuts move around without the mouse: `Enter` opens the notes editor; on grouped (kanban)
+  shortcuts move around without the mouse: `Enter` opens the notes editor with all text selected
+  (and `Escape` exits the editor while keeping the card selected); on grouped (kanban)
   boards `Up`/`Down` move within the column and `Left`/`Right` move to the nearest non-empty column
   (landing on the same row, or that column's last card if it is shorter — empty columns are
   skipped); on ungrouped boards `Up`/`Down` step through the list and `Left`/`Right` do nothing.

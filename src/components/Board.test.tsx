@@ -63,6 +63,36 @@ describe('Board — card selection & keyboard navigation', () => {
     expect(await screen.findByDisplayValue(CARD2_NOTES)).toBeTruthy();
   });
 
+  it('selects all note text when opening the notes editor with Enter', async () => {
+    render(<App />);
+    await selectCardByTitle('Write Q3 OKRs');
+
+    fireEvent.keyDown(document.body, { key: 'Enter' });
+
+    const textarea = (await screen.findByDisplayValue(CARD1_NOTES)) as HTMLTextAreaElement;
+    await waitFor(() => {
+      expect(document.activeElement).toBe(textarea);
+      expect(textarea.selectionStart).toBe(0);
+      expect(textarea.selectionEnd).toBe(CARD1_NOTES.length);
+    });
+  });
+
+  it('keeps the card selected when Escape exits the notes editor', async () => {
+    render(<App />);
+    await selectCardByTitle('Write Q3 OKRs');
+
+    fireEvent.keyDown(document.body, { key: 'Enter' });
+    const textarea = await screen.findByDisplayValue(CARD1_NOTES);
+
+    // Escape inside the editor closes it...
+    fireEvent.keyDown(textarea, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByDisplayValue(CARD1_NOTES)).toBeNull());
+
+    // ...but the card stays selected, so Enter reopens the same editor.
+    fireEvent.keyDown(document.body, { key: 'Enter' });
+    expect(await screen.findByDisplayValue(CARD1_NOTES)).toBeTruthy();
+  });
+
   it('clears the selection on Escape so shortcuts no longer act', async () => {
     render(<App />);
     await selectCardByTitle('Write Q3 OKRs');

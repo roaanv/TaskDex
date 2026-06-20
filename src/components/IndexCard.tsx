@@ -763,6 +763,8 @@ export function IndexCard({
     if (!autoEditNotes || !card) return;
     if (!back) {
       if (collapsed) dispatch({ type: 'setCollapsed', boardId, cardId, value: false });
+      // Preselect all note text, matching the double-click / Tab-into-notes entry.
+      selectNotesOnFocus.current = true;
       setEditTarget('notes');
       setDraft(notesOf(card.body));
       setEditing(true);
